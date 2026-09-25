@@ -101,6 +101,19 @@ await page.goto(`${BASE}/tasks`, { waitUntil: 'networkidle' })
 await page.locator('table').waitFor({ timeout: 15000 })
 await section('task-list')
 
+// 5b. A finished, locked task, back on the board
+await page.goto(`${BASE}/?project=${board.id}`, { waitUntil: 'networkidle' })
+await page.locator('h2', { hasText: 'Done' }).waitFor({ timeout: 15000 })
+await settle(700)
+const doneCard = column('Done').locator('button.w-full').first()
+if (await doneCard.count()) {
+  await doneCard.click()
+  await page.getByText('Finished and locked').first().waitFor({ timeout: 10000 })
+  await shot('task-locked')
+  await page.keyboard.press('Escape')
+  await settle(600)
+}
+
 // 6. The export dialog
 await page.goto(`${BASE}/?project=${board.id}`, { waitUntil: 'networkidle' })
 await page.locator('h2', { hasText: 'To do' }).waitFor({ timeout: 15000 })
