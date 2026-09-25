@@ -1,0 +1,53 @@
+# Pinned so the project name does not change with the directory name; this keeps
+# the mysql-data volume findable after a rename or a move.
+name: taskflow
+
+services:
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-taskflow}
+      MYSQL_USER: ${MYSQL_USER:-taskflow}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-taskflow}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-taskflow-root}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-taskflow-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    # bound to loopback so you can inspect the database with a local client;
+    # it is not reachable from other machines
+    ports:
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_URL: ${MYSQL_USER:-taskflow}:${MYSQL_PASSWORD:-taskflow}@tcp(mysql:3306)/${MYSQL_DATABASE:-taskflow}?parseTime=true&multiStatements=true&loc=UTC&collation=utf8mb4_unicode_ci
+      AUTO_MIGRATE: "true"
+      FRONTEND_DIR: /app/frontend
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "/app/healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  mysql-data:

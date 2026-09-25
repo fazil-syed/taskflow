@@ -1,0 +1,17 @@
+# dependencies and build output
+node_modules/
+dist/
+.screenshots/
+
+# local config and secrets
+.env
+.env.local
+
+# editor and OS noise
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# logs
+*.log
