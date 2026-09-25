@@ -1,33 +1,41 @@
 import { useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { MonthGrid, firstOfMonth } from '../../components/MonthGrid'
-import { TaskPanel } from '../../components/TaskPanel'
 import { Button } from '../../components/ui/Button'
 import { Drawer } from '../../components/ui/Overlay'
 import { EmptyState, PriorityFlag, ProjectBadge, Skeleton, StatusDot } from '../../components/ui/primitives'
 import { formatWeekdayDate, shiftMonth, today, type DateOnly } from '../../lib/dates'
+import { DURATION, EASE_OUT, popoverVariants } from '../../lib/motion'
 import { useFilters } from '../../lib/filters'
 import { useCalendar } from '../../lib/queries'
-import type { CalendarDay, Task } from '../../lib/types'
+import type { CalendarDay, CalendarEntry, Task } from '../../lib/types'
 
 const MAX_DOTS = 5
+
+type View = 'logged' | 'due'
+
+const VIEWS: { value: View; label: string; hint: string }[] = [
+  { value: 'logged', label: 'Logged', hint: 'Days you recorded work against a task' },
+  { value: 'due', label: 'Due', hint: 'Tasks whose due date falls on the day' },
+]
 
 export function CalendarPage() {
   const { filters } = useFilters()
   const [month, setMonth] = useState<DateOnly>(() => firstOfMonth(today()))
+  const [view, setView] = useState<View>('logged')
   const [selectedDate, setSelectedDate] = useState<DateOnly | null>(null)
-  const [openTask, setOpenTask] = useState<Task | null>(null)
   const navigate = useNavigate()
 
-  // The grid always covers whole weeks, so ask for a slightly wider window.
+  // The grid covers whole weeks, so ask for a slightly wider window.
   const range = useMemo(() => {
     const first = firstOfMonth(month)
-    const last = shiftMonth(firstOfMonth(shiftMonth(first, 1)), 1)
-    return { from: first, to: last }
+    return { from: first, to: shiftMonth(firstOfMonth(shiftMonth(first, 1)), 1) }
   }, [month])
 
-  const { data, isLoading } = useCalendar(range.from, range.to, filters)
+  const { data, isLoading } = useCalendar(range.from, range.to, filters.q)
+  const debouncedQuery = filters.q
 
   const byDate = useMemo(() => {
     const map = new Map<DateOnly, CalendarDay>()
@@ -35,28 +43,45 @@ export function CalendarPage() {
     return map
   }, [data])
 
+  const countFor = (day: CalendarDay | undefined) => {
+    if (!day) return 0
+    return view === 'logged' ? day.logged : day.due
+  }
+
+  const entriesFor = (day: CalendarDay | undefined): CalendarEntry[] => {
+    if (!day) return []
+    return view === 'logged' ? day.tasks : day.due_tasks
+  }
+
   const intensity = useMemo(() => {
     const map = new Map<DateOnly, number>()
-    for (const [date, day] of byDate) map.set(date, day.total)
+    for (const [date, day] of byDate) map.set(date, countFor(day))
     return map
-  }, [byDate])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [byDate, view])
 
   const maxIntensity = useMemo(() => Math.max(1, ...intensity.values()), [intensity])
   const selectedDay = selectedDate ? byDate.get(selectedDate) : undefined
+  const selectedEntries = entriesFor(selectedDay)
   const hasAnyWork = (data?.days.length ?? 0) > 0
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="shrink-0 space-y-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Calendar</h1>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Every day you have logged work, coloured by the status of each task.
-          </p>
+      <header className="shrink-0 space-y-3 border-b border-line px-5 py-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold text-ink">Calendar</h1>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              Every project and every queue at once. {VIEWS.find((v) => v.value === view)?.hint}.
+            </p>
+          </div>
+
+          <ViewSwitch view={view} onChange={setView} />
         </div>
-        {/* Priority is intentionally not offered here: the calendar shows where
-            work happened, not how urgent it was. */}
-        <FilterBar showPriority={false} />
+
+        {/* Search only: the sidebar and the board columns already scope by
+            project and status, so those filters would be redundant here. */}
+        <FilterBar variant="search" />
         <ActiveFilterChips />
       </header>
 
@@ -65,11 +90,11 @@ export function CalendarPage() {
           {isLoading && !data ? (
             <div className="grid grid-cols-7 gap-1">
               {Array.from({ length: 35 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square w-full" />
+                <Skeleton key={i} className="h-14 w-full sm:h-16" />
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <div className="rounded-2xl border border-line bg-surface p-4">
               <MonthGrid
                 month={month}
                 onMonthChange={setMonth}
@@ -77,17 +102,17 @@ export function CalendarPage() {
                 maxIntensity={maxIntensity}
                 selected={selectedDate ? new Set([selectedDate]) : undefined}
                 onToggle={(date) => setSelectedDate((prev) => (prev === date ? null : date))}
-                renderDay={(date) => <Dots day={byDate.get(date)} />}
+                renderDay={(date) => <Dots view={view} entries={entriesFor(byDate.get(date))} />}
                 footer={
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-3 dark:border-slate-800">
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-                      <Legend />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button size="sm" onClick={() => setMonth(firstOfMonth(today()))} disabled={month === firstOfMonth(today())}>
-                        Today
-                      </Button>
-                    </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                    <Legend view={view} />
+                    <Button
+                      size="sm"
+                      onClick={() => setMonth(firstOfMonth(today()))}
+                      disabled={month === firstOfMonth(today())}
+                    >
+                      Today
+                    </Button>
                   </div>
                 }
               />
@@ -97,8 +122,8 @@ export function CalendarPage() {
           {!isLoading && !hasAnyWork && (
             <EmptyState
               className="mt-4"
-              title="No work logged in this month"
-              description="Open a task that is ongoing or done and mark the days you worked on it."
+              title="Nothing scheduled in this month"
+              description="Log work on an ongoing task, or give a task a due date, and it will show up here."
               action={
                 <Button size="sm" onClick={() => navigate('/')}>
                   Go to the board
@@ -115,105 +140,178 @@ export function CalendarPage() {
         title={selectedDate ? formatWeekdayDate(selectedDate) : ''}
         subtitle={
           selectedDay
-            ? `${selectedDay.total} task${selectedDay.total === 1 ? '' : 's'} · ${selectedDay.counts.done} done, ${selectedDay.counts.ongoing} ongoing, ${selectedDay.counts.todo} to do`
-            : 'No work logged on this day'
+            ? view === 'logged'
+              ? `${selectedDay.logged} task${selectedDay.logged === 1 ? '' : 's'} worked · ${selectedDay.counts.done} done, ${selectedDay.counts.ongoing} ongoing, ${selectedDay.counts.todo} to do`
+              : `${selectedDay.due} task${selectedDay.due === 1 ? '' : 's'} due`
+            : view === 'logged'
+              ? 'No work logged on this day'
+              : 'Nothing due on this day'
         }
       >
-        {selectedDay && selectedDay.tasks.length > 0 ? (
+        {selectedEntries.length > 0 ? (
           <ul className="space-y-2">
-            {[...selectedDay.tasks]
-              .sort((a, b) => a.priority.localeCompare(b.priority))
-              .map((entry) => (
-                <li key={entry.task_id}>
-                  <button
-                    onClick={() => navigate(`/?project=${entry.project_id}`)}
-                    className="flex w-full items-start gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/50"
-                  >
-                    <StatusDot status={entry.status} className="mt-1.5" />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                        {entry.title}
-                      </span>
-                      <span className="mt-1 flex flex-wrap items-center gap-2">
-                        <ProjectBadge name={entry.project_name} color={entry.project_color} />
-                        <PriorityFlag priority={entry.priority} showLabel />
-                        {entry.locked && (
-                          <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                            <svg viewBox="0 0 20 20" className="size-3" fill="none" aria-hidden>
-                              <rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
-                              <path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                            </svg>
-                            Locked
-                          </span>
-                        )}
-                      </span>
+            {selectedEntries.map((entry) => (
+              <li key={`${view}-${entry.task_id}`}>
+                <button
+                  onClick={() => navigate(`/?project=${entry.project_id}`)}
+                  className="flex w-full items-start gap-3 rounded-xl border border-line p-3 text-left transition-colors hover:border-line-strong hover:bg-elevated"
+                >
+                  <StatusDot status={entry.status} className="mt-1.5" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-ink">{entry.title}</span>
+                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                      <ProjectBadge name={entry.project_name} color={entry.project_color} />
+                      <PriorityFlag priority={entry.priority} showLabel />
+                      {view === 'logged' ? (
+                        <span className="text-xs text-ink-faint">{STATUS_LABEL[entry.status]}</span>
+                      ) : (
+                        entry.locked && <span className="text-xs text-ink-faint">Locked</span>
+                      )}
                     </span>
-                  </button>
-                </li>
-              ))}
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>
         ) : (
-          <EmptyState title="Nothing here" description="No tasks have work logged on this day." />
+          <EmptyState
+            title={view === 'logged' ? 'Nothing logged here' : 'Nothing due here'}
+            description={
+              view === 'logged'
+                ? 'No tasks have work recorded on this day.'
+                : 'No tasks have a due date on this day.'
+            }
+          />
         )}
       </Drawer>
+    </div>
+  )
+}
 
-      <TaskPanel task={openTask} onClose={() => setOpenTask(null)} />
+const STATUS_LABEL: Record<Task['status'], string> = {
+  todo: 'To do',
+  ongoing: 'Ongoing',
+  done: 'Done',
+}
+
+/** Segmented control for choosing what the grid shows. */
+function ViewSwitch({ view, onChange }: { view: View; onChange: (view: View) => void }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Calendar view"
+      className="relative flex rounded-lg bg-elevated p-0.5"
+    >
+      {VIEWS.map((option) => {
+        const active = option.value === view
+        return (
+          <button
+            key={option.value}
+            role="tab"
+            aria-selected={active}
+            onClick={() => onChange(option.value)}
+            className={`relative flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              active ? 'text-ink' : 'text-ink-soft hover:text-ink'
+            }`}
+          >
+            {/* A single pill slides between the two options. */}
+            {active && (
+              <motion.span
+                layoutId="calendar-view-pill"
+                className="absolute inset-0 rounded-md bg-surface shadow-sm dark:bg-strong"
+                transition={{ duration: DURATION.base, ease: EASE_OUT }}
+              />
+            )}
+            <span className="relative">{option.label}</span>
+          </button>
+        )
+      })}
     </div>
   )
 }
 
 /**
- * Up to five status-coloured dots for a day. Urgent work is drawn at full
- * opacity and low priority is faded, so the dots read in priority order.
+ * Up to five dots for a day. The logged view colours by status; the due view
+ * colours by priority. In both, the least important items are faded so the dots
+ * read in the order that matters.
  */
-function Dots({ day }: { day: CalendarDay | undefined }) {
-  if (!day || day.total === 0) return null
-  const byWeight = [...day.tasks].sort(
-    (a, b) => weight(b.priority) - weight(a.priority) || a.task_id - b.task_id,
-  )
-  const shown = byWeight.slice(0, MAX_DOTS)
-  const overflow = day.total - shown.length
+function Dots({ view, entries }: { view: View; entries: CalendarEntry[] }) {
+  if (entries.length === 0) return null
+  const ordered = [...entries].sort((a, b) => weight(b) - weight(a) || a.task_id - b.task_id)
+  const shown = ordered.slice(0, MAX_DOTS)
+  const overflow = entries.length - shown.length
 
   return (
     <>
       {shown.map((entry) => (
         <span
           key={entry.task_id}
-          title={`${entry.title} · ${entry.status}`}
-          className={`size-1.5 rounded-full ${dotStyle(entry)}`}
+          title={`${entry.title} · ${STATUS_LABEL[entry.status]}`}
+          className={`size-1.5 rounded-full ${dotStyle(view, entry)}`}
         />
       ))}
-      {overflow > 0 && <span className="ml-0.5 text-[9px] leading-none font-medium text-slate-400">+{overflow}</span>}
+      {overflow > 0 && <span className="ml-0.5 text-[9px] leading-none font-medium text-ink-faint">+{overflow}</span>}
     </>
   )
 }
 
-function weight(priority: Task['priority']): number {
-  return { urgent: 4, high: 3, normal: 2, low: 1 }[priority]
+function weight(entry: CalendarEntry): number {
+  return view_weight(entry)
 }
 
-function dotStyle(entry: { status: Task['status']; priority: Task['priority'] }): string {
-  const opacity = entry.priority === 'low' ? 'opacity-60' : entry.priority === 'normal' ? 'opacity-80' : ''
-  if (entry.status === 'done') return `bg-emerald-500 ${opacity}`
-  if (entry.status === 'ongoing') return `bg-amber-500 ${opacity}`
-  return `border border-slate-400 ${opacity}`
+function view_weight(entry: CalendarEntry): number {
+  return { urgent: 4, high: 3, normal: 2, low: 1 }[entry.priority]
 }
 
-function Legend() {
+function dotStyle(view: View, entry: CalendarEntry): string {
+  const fade = entry.priority === 'low' ? 'opacity-55' : entry.priority === 'normal' ? 'opacity-80' : ''
+
+  if (view === 'due') {
+    // A due date is a commitment, so filled dots keyed to priority.
+    const color = { urgent: 'bg-rose-500', high: 'bg-orange-500', normal: 'bg-indigo-400', low: 'bg-slate-400' }[
+      entry.priority
+    ]
+    return `${color} ${fade}`
+  }
+  if (entry.status === 'done') return `bg-emerald-500 ${fade}`
+  if (entry.status === 'ongoing') return `bg-amber-500 ${fade}`
+  return `border border-slate-400 ${fade}`
+}
+
+function Legend({ view }: { view: View }) {
   return (
-    <>
+    <div className="flex flex-wrap items-center gap-3 text-xs text-ink-soft">
+      {view === 'logged' ? (
+        <>
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot status="todo" /> To do
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot status="ongoing" /> Ongoing
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot status="done" /> Done
+          </span>
+        </>
+      ) : (
+        <>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-rose-500" /> Urgent
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-orange-500" /> High
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-indigo-400" /> Normal
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-2.5 rounded-full bg-slate-400" /> Low
+          </span>
+        </>
+      )}
       <span className="inline-flex items-center gap-1.5">
-        <StatusDot status="todo" /> To do
+        <span className="size-2.5 rounded-sm bg-emerald-500/25" /> More on that day
       </span>
-      <span className="inline-flex items-center gap-1.5">
-        <StatusDot status="ongoing" /> Ongoing
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <StatusDot status="done" /> Done
-      </span>
-      <span className="inline-flex items-center gap-1.5">
-        <span className="size-2.5 rounded-sm bg-emerald-500/20" /> More work logged
-      </span>
-    </>
+    </div>
   )
 }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../components/ToastProvider'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { TaskPanel } from '../../components/TaskPanel'
@@ -7,7 +8,7 @@ import { Button, IconButton } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Input'
 import { EmptyState, PriorityFlag, ProjectBadge, Skeleton } from '../../components/ui/primitives'
 import { useFilters } from '../../lib/filters'
-import { useDeleteTask, useSetTaskStatus, useTasks } from '../../lib/queries'
+import { keys, useDeleteTask, useSetTaskStatus, useTasks, useTask } from '../../lib/queries'
 import { PRIORITY_META, STATUS_META } from '../../components/ui/primitives'
 import type { Task, TaskStatus } from '../../lib/types'
 import { daysBetween, formatDateShort, today } from '../../lib/dates'
@@ -35,7 +36,18 @@ export function TasksPage() {
 
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'updated', dir: 'desc' })
   const [selected, setSelected] = useState<Set<number>>(new Set())
-  const [openTask, setOpenTask] = useState<Task | null>(null)
+  // Keep the id rather than a snapshot so the drawer reflects later edits.
+  const [openTaskId, setOpenTaskId] = useState<number | null>(null)
+  const openTask = useTask(openTaskId)
+  const queryClient = useQueryClient()
+
+  const openTaskPanel = useCallback(
+    (task: Task) => {
+      queryClient.setQueryData(keys.task(task.id), task)
+      setOpenTaskId(task.id)
+    },
+    [queryClient],
+  )
 
   const sorted = useMemo(() => {
     const dir = sort.dir === 'asc' ? 1 : -1
@@ -116,11 +128,11 @@ export function TasksPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="shrink-0 space-y-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+      <header className="shrink-0 space-y-3 border-b border-line px-5 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-50">All tasks</h1>
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            <h1 className="text-xl font-semibold text-ink">All tasks</h1>
+            <p className="mt-0.5 text-sm text-ink-faint dark:text-ink-soft">
               {isLoading ? 'Loading…' : `${tasks.length} task${tasks.length === 1 ? '' : 's'} across every project`}
             </p>
           </div>
@@ -130,8 +142,8 @@ export function TasksPage() {
       </header>
 
       {selected.size > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-indigo-50 px-5 py-2.5 dark:border-slate-800 dark:bg-indigo-500/10">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-indigo-50 px-5 py-2.5 dark:bg-indigo-500/10">
+          <span className="text-sm font-medium text-ink-soft dark:text-ink">
             {selected.size} selected
           </span>
           <div className="flex items-center gap-1.5">
@@ -145,7 +157,7 @@ export function TasksPage() {
             </Button>
           </div>
           {lockedSelected > 0 && (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs text-ink-faint dark:text-ink-soft">
               {lockedSelected} locked task{lockedSelected === 1 ? '' : 's'} will be skipped
             </span>
           )}
@@ -157,22 +169,22 @@ export function TasksPage() {
 
       <div className="panel-scroll min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[60rem] border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur dark:bg-slate-900/95">
-            <tr className="border-b border-slate-200 dark:border-slate-800">
+          <thead className="sticky top-0 z-10 bg-canvas/95 backdrop-blur dark:bg-surface/95">
+            <tr className="border-b border-line">
               <th className="w-10 px-3 py-2">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleAll}
                   aria-label="Select all tasks"
-                  className="size-4 cursor-pointer rounded border-slate-300 text-indigo-600 dark:border-slate-600"
+                  className="size-4 cursor-pointer rounded border-line-strong text-indigo-600"
                 />
               </th>
               {COLUMNS.map((column) => (
                 <th key={column.key} className="px-3 py-2 text-left">
                   <button
                     onClick={() => toggleSort(column.key)}
-                    className="inline-flex items-center gap-1 text-xs font-semibold tracking-wide text-slate-500 uppercase hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+                    className="inline-flex items-center gap-1 text-xs font-semibold tracking-wide text-ink-faint uppercase hover:text-ink dark:text-ink-soft dark:hover:text-ink"
                   >
                     {column.label}
                     {sort.key === column.key && (
@@ -195,7 +207,7 @@ export function TasksPage() {
           <tbody>
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i} className="border-b border-slate-100 dark:border-slate-800/60">
+                <tr key={i} className="border-b border-line dark:border-line/60">
                   <td colSpan={COLUMNS.length + 1} className="px-3 py-2">
                     <Skeleton className="h-6 w-full" />
                   </td>
@@ -214,7 +226,7 @@ export function TasksPage() {
                     else next.add(task.id)
                     setSelected(next)
                   }}
-                  onOpen={() => setOpenTask(task)}
+                  onOpen={() => openTaskPanel(task)}
                   onGoToProject={(id) => navigate(`/?project=${id}`)}
                   onSetStatus={(status) => setStatus.mutate({ id: task.id, status })}
                 />
@@ -235,7 +247,7 @@ export function TasksPage() {
         )}
       </div>
 
-      <TaskPanel task={openTask} onClose={() => setOpenTask(null)} />
+      <TaskPanel task={openTask.data ?? null} onClose={() => setOpenTaskId(null)} />
     </div>
   )
 }
@@ -260,9 +272,9 @@ function TaskRow({
 
   return (
     <tr
-      className={`border-b border-slate-100 transition-colors dark:border-slate-800/60 ${
-        selected ? 'bg-indigo-50/70 dark:bg-indigo-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-      } ${task.locked ? 'text-slate-500 dark:text-slate-400' : ''}`}
+      className={`border-b border-line transition-colors dark:border-line/60 ${
+        selected ? 'bg-indigo-50/70 dark:bg-indigo-500/10' : 'hover:bg-canvas dark:hover:bg-elevated/40'
+      } ${task.locked ? 'text-ink-faint dark:text-ink-soft' : ''}`}
     >
       <td className="px-3 py-2">
         <input
@@ -270,26 +282,26 @@ function TaskRow({
           checked={selected}
           onChange={onToggle}
           aria-label={`Select ${task.title}`}
-          className="size-4 cursor-pointer rounded border-slate-300 text-indigo-600 dark:border-slate-600"
+          className="size-4 cursor-pointer rounded border-line-strong text-indigo-600"
         />
       </td>
 
       <td className="max-w-md px-3 py-2">
         <button onClick={onOpen} className="flex w-full items-center gap-2 text-left">
           <span
-            className={`truncate font-medium ${task.locked ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}
+            className={`truncate font-medium ${task.locked ? 'text-ink-faint dark:text-ink-soft' : 'text-ink dark:text-ink'}`}
           >
             {task.title}
           </span>
           {task.locked && (
-            <svg viewBox="0 0 20 20" className="size-3 shrink-0 text-slate-400" fill="none" aria-hidden>
+            <svg viewBox="0 0 20 20" className="size-3 shrink-0 text-ink-faint" fill="none" aria-hidden>
               <rect x="4" y="9" width="12" height="8" rx="2" stroke="currentColor" strokeWidth="1.6" />
               <path d="M7 9V6.5a3 3 0 0 1 6 0V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
           )}
         </button>
         {task.description.trim() && (
-          <p className="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{task.description.split('\n')[0]}</p>
+          <p className="mt-0.5 truncate text-xs text-ink-faint dark:text-ink-soft">{task.description.split('\n')[0]}</p>
         )}
       </td>
 
@@ -319,19 +331,19 @@ function TaskRow({
         <PriorityFlag priority={task.priority} showLabel />
       </td>
 
-      <td className={overdue ? 'px-3 py-2 font-medium text-rose-600 dark:text-rose-400' : 'px-3 py-2 text-slate-600 dark:text-slate-300'}>
-        {task.due_date ? formatDateShort(task.due_date) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+      <td className={overdue ? 'px-3 py-2 font-medium text-rose-600 dark:text-rose-400' : 'px-3 py-2 text-ink-soft dark:text-ink-soft'}>
+        {task.due_date ? formatDateShort(task.due_date) : <span className="text-ink-faint">—</span>}
       </td>
 
-      <td className="px-3 py-2 text-slate-600 dark:text-slate-300">
-        {task.start_date ? formatDateShort(task.start_date) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+      <td className="px-3 py-2 text-ink-soft">
+        {task.start_date ? formatDateShort(task.start_date) : <span className="text-ink-faint">—</span>}
       </td>
 
-      <td className="px-3 py-2 text-center tabular-nums text-slate-600 dark:text-slate-300">
-        {task.work_day_count || <span className="text-slate-300 dark:text-slate-600">0</span>}
+      <td className="px-3 py-2 text-center tabular-nums text-ink-soft">
+        {task.work_day_count || <span className="text-ink-faint">0</span>}
       </td>
 
-      <td className="px-3 py-2 text-slate-500 dark:text-slate-400">
+      <td className="px-3 py-2 text-ink-faint dark:text-ink-soft">
         {new Date(task.updated_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
       </td>
 

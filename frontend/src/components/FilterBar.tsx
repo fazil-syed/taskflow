@@ -28,13 +28,18 @@ const DUE_OPTIONS: { value: DueFilter; label: string }[] = [
 ]
 
 export function FilterBar({
-  showPriority = true,
+  variant = 'full',
   right,
 }: {
-  /** The calendar deliberately hides the priority filter. */
-  showPriority?: boolean
+  /**
+   * `full` shows every filter. `search` shows only the search box, which is what
+   * the calendar needs: the queues and the project sidebar already scope the
+   * board, so repeating those filters on a cross-project view is noise.
+   */
+  variant?: 'full' | 'search'
   right?: React.ReactNode
 }) {
+  const showAll = variant === 'full'
   const { filters, update, clear, count } = useFilters()
   const { data: projects = [] } = useProjects()
   const [query, setQuery] = useState(filters.q)
@@ -50,7 +55,7 @@ export function FilterBar({
     <div className="flex flex-wrap items-center gap-2">
       <div className="relative min-w-[12rem] flex-1 sm:max-w-xs">
         <svg
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-ink-faint"
           viewBox="0 0 20 20"
           fill="none"
           aria-hidden
@@ -67,51 +72,53 @@ export function FilterBar({
         />
       </div>
 
-      <ProjectFilter projects={projects} selected={filters.projects} onChange={(ids) => update({ projects: ids })} />
+      {showAll && (
+        <>
+          <ProjectFilter projects={projects} selected={filters.projects} onChange={(ids) => update({ projects: ids })} />
 
-      <Select
-        aria-label="Filter by status"
-        value={filters.status}
-        onChange={(e) => update({ status: e.target.value as TaskStatus | '' })}
-        className="w-auto min-w-[8.5rem]"
-      >
-        {STATUS_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </Select>
+          <Select
+            aria-label="Filter by status"
+            value={filters.status}
+            onChange={(e) => update({ status: e.target.value as TaskStatus | '' })}
+            className="w-auto min-w-[8.5rem]"
+          >
+            {STATUS_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
 
-      {showPriority && (
-        <Select
-          aria-label="Filter by priority"
-          value={filters.priority}
-          onChange={(e) => update({ priority: e.target.value as TaskPriority | '' })}
-          className="w-auto min-w-[8.5rem]"
-        >
-          {PRIORITY_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
+          <Select
+            aria-label="Filter by priority"
+            value={filters.priority}
+            onChange={(e) => update({ priority: e.target.value as TaskPriority | '' })}
+            className="w-auto min-w-[8.5rem]"
+          >
+            {PRIORITY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            aria-label="Filter by due date"
+            value={filters.due}
+            onChange={(e) => update({ due: e.target.value as DueFilter })}
+            className="w-auto min-w-[9rem]"
+          >
+            {DUE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </>
       )}
 
-      <Select
-        aria-label="Filter by due date"
-        value={filters.due}
-        onChange={(e) => update({ due: e.target.value as DueFilter })}
-        className="w-auto min-w-[9rem]"
-      >
-        {DUE_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </Select>
-
       {count > 0 && (
-        <Button variant="ghost" size="sm" onClick={clear} className="text-slate-500">
+        <Button variant="ghost" size="sm" onClick={clear} className="text-ink-faint">
           <CloseIcon className="size-3.5" />
           Clear
         </Button>
@@ -161,9 +168,9 @@ function ProjectFilter({
       {open && (
         <div
           role="listbox"
-          className="animate-pop absolute z-30 mt-1.5 max-h-72 w-64 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700"
+          className="animate-pop absolute z-30 mt-1.5 max-h-72 w-64 overflow-y-auto rounded-xl bg-white p-1 shadow-lg ring-1 ring-line dark:bg-elevated dark:ring-line-strong"
         >
-          {projects.length === 0 && <p className="px-3 py-6 text-center text-sm text-slate-500">No projects yet</p>}
+          {projects.length === 0 && <p className="px-3 py-6 text-center text-sm text-ink-faint">No projects yet</p>}
           {projects.map((project) => {
             const isSelected = selected.includes(project.id)
             return (
@@ -174,7 +181,7 @@ function ProjectFilter({
                 onClick={() => toggle(project.id)}
                 className={cn(
                   'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm transition-colors',
-                  'hover:bg-slate-100 dark:hover:bg-slate-700/60',
+                  'hover:bg-elevated dark:hover:bg-strong/60',
                 )}
               >
                 <span
@@ -182,7 +189,7 @@ function ProjectFilter({
                     'flex size-4 shrink-0 items-center justify-center rounded border',
                     isSelected
                       ? 'border-indigo-600 bg-indigo-600 dark:border-indigo-500 dark:bg-indigo-500'
-                      : 'border-slate-300 dark:border-slate-600',
+                      : 'border-line-strong dark:border-line-strong',
                   )}
                 >
                   {isSelected && (
@@ -197,10 +204,10 @@ function ProjectFilter({
           })}
           {selected.length > 0 && (
             <>
-              <div className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
+              <div className="my-1 h-px bg-strong" />
               <button
                 onClick={() => onChange([])}
-                className="w-full rounded-lg px-2.5 py-2 text-left text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700/60"
+                className="w-full rounded-lg px-2.5 py-2 text-left text-sm text-ink-soft hover:bg-elevated dark:hover:bg-strong/60"
               >
                 Clear project filter
               </button>
@@ -260,14 +267,14 @@ export function ActiveFilterChips() {
       {chips.map((chip) => (
         <span
           key={chip.key}
-          className="inline-flex items-center gap-1 rounded-full bg-slate-200 py-0.5 pr-1 pl-2.5 text-xs font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          className="inline-flex items-center gap-1 rounded-full bg-strong py-0.5 pr-1 pl-2.5 text-xs font-medium text-ink-soft dark:bg-elevated dark:text-ink"
         >
           {chip.label}
           <IconButton
             label={`Remove ${chip.label} filter`}
             size="sm"
             onClick={chip.onRemove}
-            className="size-5 rounded-full hover:bg-slate-300 dark:hover:bg-slate-700"
+            className="size-5 rounded-full hover:bg-strong dark:hover:bg-strong"
           >
             <CloseIcon className="size-3" />
           </IconButton>

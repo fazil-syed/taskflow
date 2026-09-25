@@ -6,6 +6,7 @@ import { useToast } from './ToastProvider'
 import {
   useAddWorkDay,
   useCompleteTask,
+  useLockTask,
   useDeleteTask,
   useRemoveWorkDay,
   useSetTaskStatus,
@@ -39,6 +40,7 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
   const start = useStartTask()
   const setStatus = useSetTaskStatus()
   const complete = useCompleteTask()
+  const lock = useLockTask()
   const unlock = useUnlockTask()
   const remove = useDeleteTask()
   const addWorkDay = useAddWorkDay()
@@ -126,7 +128,7 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
         title={
           <span className="flex items-center gap-2">
             <StatusPill status={task.status} />
-            {locked && <LockIcon className="text-slate-400" />}
+            {locked && <LockIcon className="text-ink-faint" />}
           </span>
         }
         subtitle={
@@ -149,11 +151,11 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
         }
       >
         {locked && (
-          <div className="mb-5 flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 dark:border-slate-700 dark:bg-slate-800/60">
-            <LockIcon className="mt-0.5 shrink-0 text-slate-400" />
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-line bg-canvas p-3.5 dark:border-line-strong dark:bg-elevated/60">
+            <LockIcon className="mt-0.5 shrink-0 text-ink-faint" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-100">Finished and locked</p>
-              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">
+              <p className="text-sm font-medium text-ink">Finished and locked</p>
+              <p className="mt-0.5 text-sm text-ink-soft">
                 Everything about this task is read-only until you unlock it.
               </p>
               <Button
@@ -239,7 +241,7 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
           </div>
 
           <Field label="Queue">
-            <div className="flex rounded-lg bg-slate-100 p-0.5 dark:bg-slate-800">
+            <div className="flex rounded-lg bg-elevated p-0.5">
               {STATUS_FLOW.map((s) => {
                 const isCurrent = task.status === s.value
                 return (
@@ -250,8 +252,8 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
                     className={cn(
                       'flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed disabled:opacity-40',
                       isCurrent
-                        ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-slate-50'
-                        : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100',
+                        ? 'bg-white text-ink shadow-sm dark:bg-strong dark:text-ink'
+                        : 'text-ink-soft hover:text-ink dark:text-ink-soft dark:hover:text-ink',
                     )}
                   >
                     {s.label}
@@ -261,14 +263,42 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
             </div>
           </Field>
 
-          <div className="border-t border-slate-200 pt-5 dark:border-slate-800">
+          {/* A finished task can be unlocked to make corrections, and locked
+              again afterwards. Without this there is no way back. */}
+          {task.status === 'done' && !locked && (
+            <div className="flex items-start gap-3 rounded-xl border border-line bg-canvas p-3.5">
+              <LockIcon className="mt-0.5 shrink-0 text-ink-faint" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">Finished, but unlocked</p>
+                <p className="mt-0.5 text-sm text-ink-soft">
+                  This task is editable. Lock it again to make it read-only.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-2.5"
+                  loading={lock.isPending}
+                  onClick={() =>
+                    lock.mutate(task.id, {
+                      onSuccess: () => toast.success('Task locked again'),
+                      onError: (err) => reportError(err, 'Could not lock this task'),
+                    })
+                  }
+                >
+                  <LockIcon className="size-3.5" />
+                  Lock again
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="border-t border-line pt-5">
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Days worked</h3>
-              <span className="text-xs text-slate-500 dark:text-slate-400">{task.work_day_count} total</span>
+              <h3 className="text-sm font-semibold text-ink">Days worked</h3>
+              <span className="text-xs text-ink-faint dark:text-ink-soft">{task.work_day_count} total</span>
             </div>
 
             {task.status === 'todo' ? (
-              <p className="rounded-lg bg-slate-50 p-3 text-sm text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
+              <p className="rounded-lg bg-canvas p-3 text-sm text-ink-faint dark:bg-elevated/60 dark:text-ink-soft">
                 Start this task to begin logging the days you work on it.
               </p>
             ) : (
@@ -302,11 +332,11 @@ function TaskPanelBody({ task, onClose }: { task: Task; onClose: () => void }) {
             )}
           </div>
 
-          <div className="border-t border-slate-200 pt-5 dark:border-slate-800">
+          <div className="border-t border-line pt-5">
             <Button variant="danger" size="sm" disabled={locked} onClick={() => setConfirmDelete(true)}>
               Delete task
             </Button>
-            {locked && <p className="mt-2 text-xs text-slate-500">Unlock the task to delete it.</p>}
+            {locked && <p className="mt-2 text-xs text-ink-faint">Unlock the task to delete it.</p>}
           </div>
         </div>
       </Drawer>

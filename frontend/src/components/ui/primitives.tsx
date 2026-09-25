@@ -6,9 +6,9 @@ import { formatDateShort, relativeDay, today } from '../../lib/dates'
 export const STATUS_META: Record<TaskStatus, { label: string; dot: string; text: string; bg: string }> = {
   todo: {
     label: 'To do',
-    dot: 'border-2 border-slate-400 bg-transparent',
-    text: 'text-slate-600 dark:text-slate-300',
-    bg: 'bg-slate-100 dark:bg-slate-800',
+    dot: 'border-2 border-line-strong bg-transparent',
+    text: 'text-ink-soft dark:text-ink-soft',
+    bg: 'bg-elevated dark:bg-elevated',
   },
   ongoing: {
     label: 'Ongoing',
@@ -31,7 +31,7 @@ export const PRIORITY_META: Record<
   urgent: { label: 'Urgent', text: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-500/15', color: '#e11d48', weight: 4 },
   high: { label: 'High', text: 'text-orange-700 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-500/15', color: '#f97316', weight: 3 },
   normal: { label: 'Normal', text: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/15', color: '#3b82f6', weight: 2 },
-  low: { label: 'Low', text: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800', color: '#64748b', weight: 1 },
+  low: { label: 'Low', text: 'text-ink-soft dark:text-ink-soft', bg: 'bg-elevated dark:bg-elevated', color: '#64748b', weight: 1 },
 }
 
 export const PRIORITY_ORDER: TaskPriority[] = ['urgent', 'high', 'normal', 'low']
@@ -72,7 +72,7 @@ export function PriorityFlag({ priority, showLabel = false }: { priority: TaskPr
 
 export function ProjectBadge({ name, color }: { name: string; color: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-ink-soft">
       <span className="size-2 shrink-0 rounded-[3px]" style={{ backgroundColor: color }} />
       <span className="max-w-[10rem] truncate">{name}</span>
     </span>
@@ -99,7 +99,7 @@ export function DueBadge({ date, done }: { date: string; done: boolean }) {
           ? 'bg-rose-100 font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-400'
           : soon
             ? 'bg-amber-100 font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-            : 'text-slate-500 dark:text-slate-400',
+            : 'text-ink-faint dark:text-ink-soft',
       )}
       title={`Due ${formatDateShort(date)} (${relativeDay(date)})`}
     >
@@ -131,13 +131,13 @@ export function WorkDayStrip({ days, className }: { days: string[]; className?: 
           className="size-1.5 rounded-full bg-emerald-500/80 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/80"
         />
       ))}
-      {days.length > 5 && <span className="ml-0.5 text-[10px] text-slate-400">+{days.length - 5}</span>}
+      {days.length > 5 && <span className="ml-0.5 text-[10px] text-ink-faint">+{days.length - 5}</span>}
     </span>
   )
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-md bg-slate-200 dark:bg-slate-800', className)} />
+  return <div className={cn('animate-pulse rounded-md bg-strong dark:bg-elevated', className)} />
 }
 
 export function EmptyState({
@@ -155,9 +155,9 @@ export function EmptyState({
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-10 text-center', className)}>
-      {icon && <div className="mb-3 text-slate-300 dark:text-slate-600">{icon}</div>}
-      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">{title}</p>
-      {description && <p className="mt-1 max-w-xs text-sm text-slate-500 dark:text-slate-400">{description}</p>}
+      {icon && <div className="mb-3 text-ink-faint">{icon}</div>}
+      <p className="text-sm font-medium text-ink-soft dark:text-ink">{title}</p>
+      {description && <p className="mt-1 max-w-xs text-sm text-ink-faint dark:text-ink-soft">{description}</p>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )
@@ -165,7 +165,7 @@ export function EmptyState({
 
 export function SpinnerBlock({ className }: { className?: string }) {
   return (
-    <div className={cn('flex items-center justify-center py-10 text-slate-400', className)}>
+    <div className={cn('flex items-center justify-center py-10 text-ink-faint', className)}>
       <svg className="size-5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
         <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" className="opacity-25" />
         <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />

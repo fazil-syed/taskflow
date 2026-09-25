@@ -153,7 +153,7 @@ function ProjectForm({
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={form.color === swatch}
                 className={`size-7 rounded-full transition dark:ring-offset-slate-900 ${
-                  form.color === swatch ? 'ring-2 ring-slate-900 ring-offset-2 dark:ring-slate-100' : 'hover:scale-110'
+                  form.color === swatch ? 'ring-2 ring-ink ring-offset-2 dark:ring-white' : 'hover:scale-110'
                 }`}
                 style={{ backgroundColor: swatch }}
               />

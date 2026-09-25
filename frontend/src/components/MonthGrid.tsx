@@ -63,7 +63,7 @@ export function MonthGrid({
         <IconButton label="Previous month" size="sm" onClick={() => onMonthChange(shiftMonth(month, -1))}>
           <Chevron dir="left" />
         </IconButton>
-        <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{monthLabel(month)}</div>
+        <div className="text-sm font-semibold text-ink">{monthLabel(month)}</div>
         <IconButton label="Next month" size="sm" onClick={() => onMonthChange(shiftMonth(month, 1))}>
           <Chevron dir="right" />
         </IconButton>
@@ -71,7 +71,7 @@ export function MonthGrid({
 
       <div className="grid grid-cols-7 gap-1">
         {weekdayLabels().map((label) => (
-          <div key={label} className="pb-1.5 text-center text-[11px] font-medium tracking-wide text-slate-400 uppercase">
+          <div key={label} className="pb-1.5 text-center text-[11px] font-medium tracking-wide text-ink-faint uppercase">
             {label[0]}
           </div>
         ))}
@@ -92,8 +92,8 @@ export function MonthGrid({
               aria-pressed={isSelected}
               className={cn(
                 'relative flex h-14 flex-col items-center justify-center gap-0.5 rounded-lg text-xs transition sm:h-16',
-                inMonth ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300 dark:text-slate-700',
-                interactive && !isSelected && 'hover:bg-slate-100 dark:hover:bg-slate-800',
+                inMonth ? 'text-ink-soft dark:text-ink' : 'text-ink-faint dark:text-ink-faint',
+                interactive && !isSelected && 'hover:bg-elevated dark:hover:bg-elevated',
                 interactive && 'cursor-pointer',
                 !interactive && 'cursor-default',
                 level > 0 && !isSelected && heatStyle(level),
@@ -167,7 +167,7 @@ export function QuickDayButtons({ onPick, disabled }: { onPick: (date: DateOnly)
           key={o.label}
           disabled={disabled}
           onClick={() => onPick(o.date)}
-          className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+          className="rounded-full bg-elevated px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:bg-strong disabled:opacity-50 dark:hover:bg-strong"
         >
           {o.label}
         </button>

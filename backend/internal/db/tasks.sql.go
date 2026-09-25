@@ -251,7 +251,87 @@ func (q *Queries) ListBoardTasks(ctx context.Context, arg ListBoardTasksParams) 
 	return items, nil
 }
 
+const listCalendarDueEntries = `-- name: ListCalendarDueEntries :many
+SELECT
+    t.due_date,
+    t.id AS task_id,
+    t.title,
+    t.status,
+    t.priority,
+    t.locked,
+    t.project_id,
+    p.name AS project_name,
+    p.color AS project_color
+FROM tasks t
+JOIN projects p ON p.id = t.project_id
+WHERE t.due_date BETWEEN ? AND ?
+  AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(?, ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(?, t.status)
+  AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(?, ''), '%')
+ORDER BY t.due_date ASC, t.id ASC
+`
+
+type ListCalendarDueEntriesParams struct {
+	FromDate   sql.NullTime   `json:"from_date"`
+	ToDate     sql.NullTime   `json:"to_date"`
+	ProjectIds interface{}    `json:"project_ids"`
+	Status     sql.NullString `json:"status"`
+	Q          interface{}    `json:"q"`
+}
+
+type ListCalendarDueEntriesRow struct {
+	DueDate      sql.NullTime `json:"due_date"`
+	TaskID       uint64       `json:"task_id"`
+	Title        string       `json:"title"`
+	Status       string       `json:"status"`
+	Priority     string       `json:"priority"`
+	Locked       bool         `json:"locked"`
+	ProjectID    uint64       `json:"project_id"`
+	ProjectName  string       `json:"project_name"`
+	ProjectColor string       `json:"project_color"`
+}
+
+func (q *Queries) ListCalendarDueEntries(ctx context.Context, arg ListCalendarDueEntriesParams) ([]ListCalendarDueEntriesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listCalendarDueEntries,
+		arg.FromDate,
+		arg.ToDate,
+		arg.ProjectIds,
+		arg.Status,
+		arg.Q,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCalendarDueEntriesRow{}
+	for rows.Next() {
+		var i ListCalendarDueEntriesRow
+		if err := rows.Scan(
+			&i.DueDate,
+			&i.TaskID,
+			&i.Title,
+			&i.Status,
+			&i.Priority,
+			&i.Locked,
+			&i.ProjectID,
+			&i.ProjectName,
+			&i.ProjectColor,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listCalendarEntries = `-- name: ListCalendarEntries :many
+
 SELECT
     w.work_date,
     t.id AS task_id,
@@ -265,25 +345,19 @@ SELECT
 FROM task_work_days w
 JOIN tasks t ON t.id = w.task_id
 JOIN projects p ON p.id = t.project_id
-CROSS JOIN (
-    SELECT
-        CAST(? AS CHAR(64)) AS f_project_ids,
-        CAST(?      AS CHAR(16))  AS f_status,
-        CAST(?           AS CHAR(255)) AS f_q
-) f
 WHERE w.work_date BETWEEN ? AND ?
-  AND (f.f_project_ids = '' OR FIND_IN_SET(t.project_id, f.f_project_ids))
-  AND (f.f_status = '' OR t.status = f.f_status)
-  AND (f.f_q = '' OR t.title LIKE CONCAT('%', f.f_q, '%'))
+  AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(?, ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(?, t.status)
+  AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(?, ''), '%')
 ORDER BY w.work_date ASC, t.id ASC
 `
 
 type ListCalendarEntriesParams struct {
-	ProjectIds interface{} `json:"project_ids"`
-	Status     interface{} `json:"status"`
-	Q          interface{} `json:"q"`
-	FromDate   time.Time   `json:"from_date"`
-	ToDate     time.Time   `json:"to_date"`
+	FromDate   time.Time      `json:"from_date"`
+	ToDate     time.Time      `json:"to_date"`
+	ProjectIds interface{}    `json:"project_ids"`
+	Status     sql.NullString `json:"status"`
+	Q          interface{}    `json:"q"`
 }
 
 type ListCalendarEntriesRow struct {
@@ -298,13 +372,16 @@ type ListCalendarEntriesRow struct {
 	ProjectColor string    `json:"project_color"`
 }
 
+// Filter style note: each optional filter is referenced exactly once by
+// folding the "no filter" case into a COALESCE/NULLIF default. Repeating the
+// same argument in two places makes sqlc infer conflicting types and drop it.
 func (q *Queries) ListCalendarEntries(ctx context.Context, arg ListCalendarEntriesParams) ([]ListCalendarEntriesRow, error) {
 	rows, err := q.db.QueryContext(ctx, listCalendarEntries,
+		arg.FromDate,
+		arg.ToDate,
 		arg.ProjectIds,
 		arg.Status,
 		arg.Q,
-		arg.FromDate,
-		arg.ToDate,
 	)
 	if err != nil {
 		return nil, err

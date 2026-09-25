@@ -162,6 +162,10 @@ SELECT task_id, work_date FROM task_work_days
 WHERE task_id IN (sqlc.slice('task_ids'))
 ORDER BY work_date ASC;
 
+-- Filter style note: each optional filter is referenced exactly once by
+-- folding the "no filter" case into a COALESCE/NULLIF default. Repeating the
+-- same argument in two places makes sqlc infer conflicting types and drop it.
+
 -- name: ListCalendarEntries :many
 SELECT
     w.work_date,
@@ -176,14 +180,27 @@ SELECT
 FROM task_work_days w
 JOIN tasks t ON t.id = w.task_id
 JOIN projects p ON p.id = t.project_id
-CROSS JOIN (
-    SELECT
-        CAST(sqlc.arg('project_ids') AS CHAR(64)) AS f_project_ids,
-        CAST(sqlc.arg('status')      AS CHAR(16))  AS f_status,
-        CAST(sqlc.arg('q')           AS CHAR(255)) AS f_q
-) f
 WHERE w.work_date BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date')
-  AND (f.f_project_ids = '' OR FIND_IN_SET(t.project_id, f.f_project_ids))
-  AND (f.f_status = '' OR t.status = f.f_status)
-  AND (f.f_q = '' OR t.title LIKE CONCAT('%', f.f_q, '%'))
+  AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(sqlc.arg('project_ids'), ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(sqlc.narg('status'), t.status)
+  AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(sqlc.narg('q'), ''), '%')
 ORDER BY w.work_date ASC, t.id ASC;
+
+-- name: ListCalendarDueEntries :many
+SELECT
+    t.due_date,
+    t.id AS task_id,
+    t.title,
+    t.status,
+    t.priority,
+    t.locked,
+    t.project_id,
+    p.name AS project_name,
+    p.color AS project_color
+FROM tasks t
+JOIN projects p ON p.id = t.project_id
+WHERE t.due_date BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date')
+  AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(sqlc.arg('project_ids'), ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(sqlc.narg('status'), t.status)
+  AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(sqlc.narg('q'), ''), '%')
+ORDER BY t.due_date ASC, t.id ASC;

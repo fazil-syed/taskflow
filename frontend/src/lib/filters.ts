@@ -34,44 +34,50 @@ export function countActiveFilters(f: Filters): number {
   )
 }
 
-function parse(raw: string | null): Filters {
+const FILTER_KEYS = ['projects', 'status', 'priority', 'due', 'q'] as const
+
+function parse(params: URLSearchParams): Filters {
+  const raw = params.get('projects')
   return {
     projects: raw ? raw.split(',').filter(Boolean).map(Number) : [],
-    status: (raw ?? '') as TaskStatus | '',
-    priority: (raw ?? '') as TaskPriority | '',
-    due: (raw ?? '') as DueFilter,
-    q: '',
+    status: (params.get('status') ?? '') as TaskStatus | '',
+    priority: (params.get('priority') ?? '') as TaskPriority | '',
+    due: (params.get('due') ?? '') as DueFilter,
+    q: params.get('q') ?? '',
   }
 }
 
-function serialize(f: Filters): URLSearchParams {
-  const params = new URLSearchParams()
+/**
+ * Writes the filter keys onto a copy of the current params, leaving every other
+ * key alone. Replacing the whole query string would silently drop things like
+ * `?project=`, which the board relies on to know which project is open.
+ */
+function serialize(current: URLSearchParams, f: Filters): URLSearchParams {
+  const params = new URLSearchParams(current)
+  for (const key of FILTER_KEYS) params.delete(key)
+
   if (f.projects.length) params.set('projects', f.projects.join(','))
   if (f.status) params.set('status', f.status)
   if (f.priority) params.set('priority', f.priority)
   if (f.due) params.set('due', f.due)
+  if (f.q.trim()) params.set('q', f.q.trim())
   return params
 }
 
 /**
  * Filter state lives in the URL so a view can be bookmarked and the back button
- * steps through filter changes. The free-text box is kept out of the URL (it
- * would spam history) and read from `?q=` on first mount only.
+ * steps through filter changes. The free-text box is kept out of the URL while
+ * typing and committed once it settles.
  */
 export function useFilters() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const filters = useMemo(
-    () => ({ ...parse(searchParams.get('projects')), q: searchParams.get('q') ?? '' }),
-    [searchParams],
-  )
+  const filters = useMemo(() => parse(searchParams), [searchParams])
 
   const commit = useCallback(
-    (next: Filters, opts: { replace?: boolean } = {}) => {
-      const params = serialize(next)
-      if (next.q.trim()) params.set('q', next.q.trim())
-      setSearchParams(params, { replace: opts.replace ?? true })
+    (next: Filters) => {
+      setSearchParams(serialize(searchParams, next), { replace: true })
     },
-    [setSearchParams],
+    [searchParams, setSearchParams],
   )
 
   const update = useCallback(
@@ -82,8 +88,9 @@ export function useFilters() {
   )
 
   const clear = useCallback(() => {
-    setSearchParams(new URLSearchParams(), { replace: true })
-  }, [setSearchParams])
+    // Only the filters are removed; anything else in the URL is left in place.
+    setSearchParams(serialize(searchParams, { ...EMPTY_FILTERS, q: '' }), { replace: true })
+  }, [searchParams, setSearchParams])
 
   return { filters, update, clear, active: filtersActive(filters), count: countActiveFilters(filters) }
 }

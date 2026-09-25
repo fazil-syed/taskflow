@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router'
+import { Link, NavLink, Route, Routes } from 'react-router'
 import { ToastProvider } from './components/ToastProvider'
 import { IconButton } from './components/ui/Button'
 import { SpinnerBlock } from './components/ui/primitives'
@@ -58,11 +58,15 @@ function Shell() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4 py-2.5 dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center gap-2">
+      <header className="flex shrink-0 items-center gap-4 border-b border-line bg-white px-4 py-2.5 dark:bg-surface">
+        <Link
+          to="/"
+          className="flex items-center gap-2 rounded-lg transition-opacity hover:opacity-80"
+          aria-label="TaskFlow home"
+        >
           <Logo />
-          <span className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-slate-50">TaskFlow</span>
-        </div>
+          <span className="text-[15px] font-semibold tracking-tight text-ink">TaskFlow</span>
+        </Link>
 
         <nav className="ml-4 flex items-center gap-0.5">
           {NAV.map(({ to, label, icon: Icon }) => (
@@ -74,8 +78,8 @@ function Shell() {
                 cn(
                   'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-50'
-                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100',
+                    ? 'bg-elevated text-ink dark:bg-elevated dark:text-ink'
+                    : 'text-ink-faint hover:bg-elevated hover:text-ink dark:text-ink-soft dark:hover:bg-elevated dark:hover:text-ink',
                 )
               }
             >
@@ -111,11 +115,10 @@ function Shell() {
   )
 }
 
-function Logo({ size }: { size?: 'lg' }) {
-  const dimension = size === 'lg' ? 'size-14' : 'size-7'
+function Logo() {
   return (
-    <span className={`flex ${dimension} items-center justify-center rounded-xl bg-indigo-600`}>
-      <svg viewBox="0 0 24 24" className={size === 'lg' ? 'size-8' : 'size-4'} fill="none" aria-hidden>
+    <span className="flex size-7 items-center justify-center rounded-xl bg-indigo-600">
+      <svg viewBox="0 0 24 24" className="size-4" fill="none" aria-hidden>
         <path d="M5 12.5l4.5 4.5L19 7" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>

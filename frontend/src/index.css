@@ -5,6 +5,23 @@
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
+  /*
+   * Semantic surface + text tokens. Everything in the app refers to these
+   * rather than raw palette steps, so the whole theme is retunable from here.
+   * The light values live here; the dark palette overrides them on .dark,
+   * which works because the generated utilities read these variables.
+   */
+  --color-canvas: #f2f4f8;
+  --color-surface: #ffffff;
+  --color-elevated: #eaeef4;
+  --color-strong: #dde3ec;
+  --color-line: #dfe4ed;
+  --color-line-strong: #c3ccdb;
+  --color-ink: #0d1526;
+  --color-ink-soft: #46536b;
+  --color-ink-faint: #8592a8;
+  --color-accent: #4f46e5;
+
   /* status colors */
   --color-todo: #94a3b8;
   --color-ongoing: #f59e0b;
@@ -17,13 +34,33 @@
   --color-prio-low: #64748b;
 }
 
+/*
+ * Dark palette: a deep blue-black canvas with four clearly separated elevation
+ * levels, so cards, inputs and hover states read as distinct layers instead of
+ * dissolving into one flat black.
+ */
+.dark {
+  --color-canvas: #0a0e16;
+  --color-surface: #141a26;
+  --color-elevated: #1c2333;
+  --color-strong: #273044;
+  --color-line: #232b3b;
+  --color-line-strong: #36415a;
+  --color-ink: #e9eef8;
+  --color-ink-soft: #a7b2c6;
+  --color-ink-faint: #74809a;
+  --color-accent: #6d78f0;
+}
+
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+    /* The tokens themselves change with the theme, so no dark: variant is needed. */
+    @apply bg-canvas text-ink antialiased;
     font-family: var(--font-sans);
   }
 
@@ -39,10 +76,10 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-slate-300 dark:bg-slate-700;
+    @apply rounded-full bg-strong;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400 dark:bg-slate-600;
+    @apply hover:bg-line-strong;
   }
 }
 
@@ -53,7 +90,7 @@
 /* thin, quiet scrollbars inside panels */
 @utility panel-scroll {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-slate-300) transparent;
+  scrollbar-color: var(--color-line-strong) transparent;
 }
 
 @keyframes tf-fade-in {
@@ -87,6 +124,38 @@
   }
 }
 
+/* Cards arriving in a queue, staggered so a reflow reads as one movement. */
+@keyframes tf-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tf-shimmer {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+
+@keyframes tf-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 @utility animate-fade-in {
   animation: tf-fade-in 0.15s ease-out;
 }
@@ -99,11 +168,33 @@
   animation: tf-pop 0.12s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+@utility animate-card-in {
+  animation: tf-card-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@utility animate-toast-in {
+  animation: tf-toast-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* A moving highlight for loading placeholders. */
+@utility skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-elevated) 0%,
+    color-mix(in oklab, var(--color-elevated) 55%, var(--color-surface)) 45%,
+    var(--color-elevated) 90%
+  );
+  background-size: 220% 100%;
+  animation: tf-shimmer 1.5s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

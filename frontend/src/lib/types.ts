@@ -70,8 +70,14 @@ export interface CalendarEntry {
 
 export interface CalendarDay {
   date: string
-  total: number
+  /** Tasks with work logged on this day. */
+  logged: number
+  /** Tasks whose due date is this day. */
+  due: number
+  /** Union of the two, for callers that do not pick a view. */
+  both: number
   tasks: CalendarEntry[]
+  due_tasks: CalendarEntry[]
   counts: Record<TaskStatus, number>
 }
 

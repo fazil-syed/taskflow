@@ -18,6 +18,10 @@ type Querier interface {
 	GetTask(ctx context.Context, id uint64) (GetTaskRow, error)
 	LastInsertID(ctx context.Context) (int64, error)
 	ListBoardTasks(ctx context.Context, arg ListBoardTasksParams) ([]ListBoardTasksRow, error)
+	ListCalendarDueEntries(ctx context.Context, arg ListCalendarDueEntriesParams) ([]ListCalendarDueEntriesRow, error)
+	// Filter style note: each optional filter is referenced exactly once by
+	// folding the "no filter" case into a COALESCE/NULLIF default. Repeating the
+	// same argument in two places makes sqlc infer conflicting types and drop it.
 	ListCalendarEntries(ctx context.Context, arg ListCalendarEntriesParams) ([]ListCalendarEntriesRow, error)
 	ListProjects(ctx context.Context, includeArchived int64) ([]ListProjectsRow, error)
 	ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error)

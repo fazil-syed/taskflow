@@ -510,9 +510,11 @@ func (s *Server) nextTaskSort(ctx context.Context, projectID uint64, status stri
 }
 
 type moveInput struct {
-	Status   string  `json:"status"`
-	BeforeID *uint64 `json:"before_id"`
-	AfterID  *uint64 `json:"after_id"`
+	Status string `json:"status"`
+	// PrevID is the task that should end up directly before the moved task, and
+	// NextID the one directly after it. Either may be nil at a queue boundary.
+	PrevID *uint64 `json:"prev_id"`
+	NextID *uint64 `json:"next_id"`
 }
 
 // MoveTask reorders a task inside a queue or moves it to another queue. The
@@ -549,7 +551,7 @@ func (s *Server) MoveTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sortOrder, err := s.computeSortOrder(r.Context(), row.ProjectID, in.Status, id, in.BeforeID, in.AfterID)
+	sortOrder, err := s.computeSortOrder(r.Context(), row.ProjectID, in.Status, id, in.PrevID, in.NextID)
 	if err != nil {
 		serverError(w, err)
 		return
@@ -570,40 +572,53 @@ func (s *Server) MoveTask(w http.ResponseWriter, r *http.Request) {
 	s.writeTask(w, r, id, http.StatusOK)
 }
 
-func (s *Server) computeSortOrder(ctx context.Context, projectID uint64, status string, selfID uint64, beforeID, afterID *uint64) (float64, error) {
-	var prev, next *float64
-	find := func(candidate *uint64) (*float64, error) {
+// computeSortOrder derives the new sort_order from the two neighbours the task
+// should land between. Only the moved row is written, so a drag never renumbers
+// the whole queue.
+func (s *Server) computeSortOrder(
+	ctx context.Context,
+	projectID uint64,
+	status string,
+	selfID uint64,
+	prevID, nextID *uint64,
+) (float64, error) {
+	// A neighbour that has since been deleted, or that lives in another queue,
+	// simply does not constrain the position.
+	lookup := func(candidate *uint64) (*float64, error) {
 		if candidate == nil || *candidate == selfID {
 			return nil, nil
 		}
 		row, err := s.q.GetTask(ctx, *candidate)
 		if err != nil {
-			return nil, nil // neighbour vanished; treat as a boundary
+			return nil, nil
 		}
 		if row.ProjectID != projectID || row.Status != status {
 			return nil, nil
 		}
-		v := row.SortOrder
-		return &v, nil
+		order := row.SortOrder
+		return &order, nil
 	}
-	var err error
-	if prev, err = find(afterID); err != nil {
+
+	prev, err := lookup(prevID)
+	if err != nil {
 		return 0, err
 	}
-	if next, err = find(beforeID); err != nil {
+	next, err := lookup(nextID)
+	if err != nil {
 		return 0, err
 	}
 
 	switch {
 	case prev != nil && next != nil:
-		if *prev == *next {
+		if *next <= *prev {
+			// The neighbours are coincident or inverted; step past the previous one.
 			return *prev + 1, nil
 		}
 		return (*prev + *next) / 2, nil
 	case prev != nil:
-		return *prev - 1, nil
+		return *prev + 1, nil
 	case next != nil:
-		return *next + 1, nil
+		return *next - 1, nil
 	default:
 		return 0, nil
 	}

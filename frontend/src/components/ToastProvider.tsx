@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { cn } from '../lib/cn'
 import { CloseIcon } from './ui/Overlay'
+import { toastVariants } from '../lib/motion'
 
 type ToastKind = 'info' | 'success' | 'error'
 
@@ -61,9 +63,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {createPortal(
         <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4">
-          {toasts.map((toast) => (
-            <ToastCard key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
-          ))}
+          <AnimatePresence initial={false}>
+            {toasts.map((toast) => (
+              <ToastCard key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
+            ))}
+          </AnimatePresence>
         </div>,
         document.body,
       )}
@@ -72,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 
 const kindStyles: Record<ToastKind, string> = {
-  info: 'ring-slate-300 dark:ring-slate-700',
+  info: 'ring-line-strong dark:ring-line-strong',
   success: 'ring-emerald-300 dark:ring-emerald-800',
   error: 'ring-rose-300 dark:ring-rose-800',
 }
@@ -83,7 +87,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       role="status"
       className={cn(
         'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl bg-white px-4 py-3 shadow-lg ring-1',
-        'animate-pop dark:bg-slate-800',
+        'animate-pop dark:bg-elevated',
         kindStyles[toast.kind],
       )}
     >
@@ -94,8 +98,8 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         )}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{toast.message}</p>
-        {toast.detail && <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">{toast.detail}</p>}
+        <p className="text-sm font-medium text-ink">{toast.message}</p>
+        {toast.detail && <p className="mt-0.5 text-sm text-ink-soft">{toast.detail}</p>}
         {toast.action && (
           <button
             className="mt-2 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
@@ -111,10 +115,10 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
       <button
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="rounded p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700"
+        className="rounded p-1 text-ink-faint transition-colors hover:bg-elevated hover:text-ink-soft dark:hover:bg-strong"
       >
         <CloseIcon />
       </button>
-    </div>
+    </motion.div>
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -14,6 +14,7 @@ import {
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useSearchParams } from 'react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useToast } from '../../components/ToastProvider'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { ProjectRail } from '../../components/ProjectRail'
@@ -25,7 +26,7 @@ import { Input } from '../../components/ui/Input'
 import { Dialog } from '../../components/ui/Overlay'
 import { EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import { useFilters } from '../../lib/filters'
-import { useBoard, useCompleteTask, useCreateTask, useMoveTask, useProjects } from '../../lib/queries'
+import { keys, useBoard, useCompleteTask, useCreateTask, useMoveTask, useProjects, useTask } from '../../lib/queries'
 import type { Task, TaskPriority, TaskStatus } from '../../lib/types'
 
 const COLUMNS: { status: TaskStatus; title: string; hint: string }[] = [
@@ -47,12 +48,33 @@ export function BoardPage() {
   const moveTask = useMoveTask()
   const complete = useCompleteTask()
 
-  const [openTask, setOpenTask] = useState<Task | null>(null)
+  const [openTaskId, setOpenTaskId] = useState<number | null>(null)
+  const openTask = useTask(openTaskId)
+  const queryClient = useQueryClient()
+
+  // Seed the detail cache from the board so the drawer opens instantly, then
+  // keeps itself current: the panel reads this query, not a frozen snapshot.
+  const openTaskPanel = useCallback(
+    (task: Task) => {
+      queryClient.setQueryData(keys.task(task.id), task)
+      setOpenTaskId(task.id)
+    },
+    [queryClient],
+  )
+
+  // If the task is gone (deleted, or its project was), close rather than leave an
+  // empty drawer behind with no explanation.
+  useEffect(() => {
+    if (openTaskId !== null && openTask.isError) setOpenTaskId(null)
+  }, [openTaskId, openTask.isError])
   const [activeDrag, setActiveDrag] = useState<Task | null>(null)
   const [overColumn, setOverColumn] = useState<TaskStatus | null>(null)
-  const [pendingDone, setPendingDone] = useState<{ task: Task; status: TaskStatus; beforeId: number | null; afterId: number | null } | null>(
-    null,
-  )
+  const [pendingDone, setPendingDone] = useState<{
+    task: Task
+    status: TaskStatus
+    prevId: number | null
+    nextId: number | null
+  } | null>(null)
 
   const columns = useMemo(() => {
     const map = new Map<TaskStatus, Task[]>()
@@ -110,28 +132,46 @@ export function BoardPage() {
     const target = locate(over.id)
     if (!target) return
 
-    // Build the target list as it will look after the move.
-    const targetList = (columns.get(target.status) ?? []).filter((t) => t.id !== task.id)
-    const insertAt = target.index === -1 ? targetList.length : target.index
-    const before = targetList[insertAt] ?? null
-    const after = targetList[insertAt - 1] ?? null
+    // Work out where the card lands in the queue *after* it has been lifted out
+    // of its current position, otherwise every index below the drag point is off
+    // by one and same-column reorders appear to do nothing.
+    const sourceList = columns.get(target.status) ?? []
+    const withoutTask = sourceList.filter((t) => t.id !== task.id)
 
-    if (task.status === target.status && (before?.id === task.id || after?.id === task.id)) return
+    let insertAt = withoutTask.length
+    if (target.index !== -1) {
+      const overIndex = sourceList.findIndex((t) => t.id === Number(over.id))
+      insertAt = overIndex === -1 ? withoutTask.length : overIndex
+      // The dragged card is no longer in the list, so anything after where it
+      // used to sit shifts one place earlier.
+      if (task.status === target.status) {
+        const ownIndex = sourceList.findIndex((t) => t.id === task.id)
+        if (ownIndex !== -1 && ownIndex < insertAt) insertAt -= 1
+      }
+    }
+    insertAt = Math.max(0, Math.min(insertAt, withoutTask.length))
 
-    const beforeId = before?.id ?? null
-    const afterId = after?.id ?? null
+    const prev = withoutTask[insertAt - 1] ?? null
+    const next = withoutTask[insertAt] ?? null
+
+    // Nothing actually changes if the card is already in that exact gap.
+    if (task.status === target.status && prev?.id === undefined && next === null) return
+    if (prev?.id === task.id || next?.id === task.id) return
+
+    const prevId = prev?.id ?? null
+    const nextId = next?.id ?? null
 
     if (target.status === 'done' && task.status !== 'done') {
-      setPendingDone({ task, status: 'done', beforeId, afterId })
+      setPendingDone({ task, status: 'done', prevId, nextId })
       return
     }
 
-    commitMove(task, target.status, beforeId, afterId)
+    commitMove(task, target.status, prevId, nextId)
   }
 
-  const commitMove = (task: Task, status: TaskStatus, beforeId: number | null, afterId: number | null) => {
+  const commitMove = (task: Task, status: TaskStatus, prevId: number | null, nextId: number | null) => {
     moveTask.mutate(
-      { id: task.id, status, beforeId, afterId },
+      { id: task.id, status, prevId, nextId },
       {
         onError: (err) => toast.error('Could not move that task', { detail: (err as Error).message }),
       },
@@ -146,8 +186,8 @@ export function BoardPage() {
         <ProjectRail selectedId={null} onSelect={selectProject} />
         <main className="flex min-w-0 flex-1 items-center justify-center p-8">
           <div className="max-w-md text-center">
-            <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-50">Create your first project</h1>
-            <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+            <h1 className="text-lg font-semibold text-ink">Create your first project</h1>
+            <p className="mt-1.5 text-sm text-ink-faint dark:text-ink-soft">
               A project holds the three queues — to do, ongoing and done — plus every day you log work against
               them.
             </p>
@@ -165,14 +205,14 @@ export function BoardPage() {
       <ProjectRail selectedId={selectedId} onSelect={selectProject} />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="shrink-0 space-y-3 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+        <header className="shrink-0 space-y-3 border-b border-line px-5 py-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h1 className="truncate text-xl font-semibold text-slate-900 dark:text-slate-50">
+              <h1 className="truncate text-xl font-semibold text-ink">
                 {board?.project.name ?? (isLoading ? 'Loading…' : 'No project selected')}
               </h1>
               {board?.project.description && (
-                <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">{board.project.description}</p>
+                <p className="mt-0.5 truncate text-sm text-ink-faint dark:text-ink-soft">{board.project.description}</p>
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -210,7 +250,7 @@ export function BoardPage() {
                 isOver={overColumn === meta.status && activeDrag !== null}
                 isLoading={isLoading}
                 filtering={board?.filtered ?? false}
-                onOpen={setOpenTask}
+                onOpen={openTaskPanel}
                 onClearFilters={clear}
               />
             ))}
@@ -222,7 +262,7 @@ export function BoardPage() {
         </DndContext>
       </main>
 
-      <TaskPanel task={openTask} onClose={() => setOpenTask(null)} />
+      <TaskPanel task={openTask.data ?? null} onClose={() => setOpenTaskId(null)} />
 
       <Dialog
         open={pendingDone !== null}
@@ -241,10 +281,10 @@ export function BoardPage() {
               loading={complete.isPending}
               onClick={() => {
                 if (!pendingDone) return
-                const { task, status, beforeId, afterId } = pendingDone
+                const { task, status, prevId, nextId } = pendingDone
                 setPendingDone(null)
                 moveTask.mutate(
-                  { id: task.id, status, beforeId, afterId },
+                  { id: task.id, status, prevId, nextId },
                   {
                     onSuccess: () =>
                       complete.mutate(task.id, {
@@ -294,13 +334,13 @@ function Column({
   const highlighted = isOver || hovering
 
   return (
-    <section className="flex min-h-0 flex-col rounded-xl bg-slate-100/70 dark:bg-slate-900/50">
+    <section className="flex min-h-0 flex-col rounded-xl bg-elevated/70 dark:bg-surface/50">
       <header className="flex items-center gap-2 px-3 py-2.5">
         <StatusDot status={status} />
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">{title}</h2>
-        <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+        <h2 className="text-sm font-semibold text-ink-soft dark:text-ink">{title}</h2>
+        <span className="rounded-full bg-strong px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-ink-soft dark:bg-elevated">
           {tasks.length}
-          {filtering && hidden > 0 && <span className="text-slate-400">/{total}</span>}
+          {filtering && hidden > 0 && <span className="text-ink-faint">/{total}</span>}
         </span>
       </header>
 
@@ -415,7 +455,7 @@ function NewTaskButton({ projectId }: { projectId: number }) {
               value={priority}
               onChange={(e) => setPriority(e.target.value as TaskPriority)}
               aria-label="Priority"
-              className="h-9 rounded-lg bg-white px-2 text-sm ring-1 ring-slate-300 ring-inset dark:bg-slate-900 dark:ring-slate-700"
+              className="h-9 rounded-lg bg-white px-2 text-sm ring-1 ring-line-strong ring-inset dark:bg-surface"
             >
               <option value="urgent">Urgent</option>
               <option value="high">High</option>

@@ -52,9 +52,9 @@ export function ProjectRail({
   }
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-slate-200 bg-slate-100/60 dark:border-slate-800 dark:bg-slate-900/40">
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-line bg-elevated/60 dark:bg-surface/40">
       <div className="flex items-center justify-between px-3 py-3">
-        <h2 className="text-xs font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">Projects</h2>
+        <h2 className="text-xs font-semibold tracking-wider text-ink-faint uppercase dark:text-ink-soft">Projects</h2>
         <IconButton label="New project" size="sm" onClick={() => setCreating(true)}>
           <svg viewBox="0 0 20 20" className="size-4" fill="none" aria-hidden>
             <path d="M10 5v10M5 10h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -66,13 +66,13 @@ export function ProjectRail({
         {isLoading && (
           <div className="space-y-1.5 px-1">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="h-9 animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800" />
+              <div key={i} className="h-9 animate-pulse rounded-lg bg-strong dark:bg-elevated" />
             ))}
           </div>
         )}
 
         {!isLoading && projects.length === 0 && (
-          <p className="px-3 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          <p className="px-3 py-6 text-center text-sm text-ink-faint dark:text-ink-soft">
             No projects yet. Create one to start tracking work.
           </p>
         )}
@@ -191,15 +191,15 @@ function RailItem({
         className={cn(
           'flex items-center gap-2 rounded-lg pr-1 transition-colors',
           selected
-            ? 'bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700'
-            : 'hover:bg-slate-200/60 dark:hover:bg-slate-800/60',
+            ? 'bg-white shadow-sm ring-1 ring-line dark:bg-elevated dark:ring-line-strong'
+            : 'hover:bg-strong/60 dark:hover:bg-elevated/60',
         )}
       >
         <button
           {...attributes}
           {...listeners}
           aria-label={`Reorder ${project.name}`}
-          className="ml-1 flex h-8 w-4 cursor-grab items-center justify-center text-slate-300 opacity-0 transition group-hover:opacity-100 active:cursor-grabbing dark:text-slate-600"
+          className="ml-1 flex h-8 w-4 cursor-grab items-center justify-center text-ink-faint opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
         >
           <svg viewBox="0 0 12 16" className="size-2.5" fill="currentColor" aria-hidden>
             <circle cx="4" cy="3" r="1.3" />
@@ -216,7 +216,7 @@ function RailItem({
           <span
             className={cn(
               'min-w-0 flex-1 truncate text-sm',
-              selected ? 'font-semibold text-slate-900 dark:text-slate-50' : 'text-slate-700 dark:text-slate-300',
+              selected ? 'font-semibold text-ink dark:text-ink' : 'text-ink-soft dark:text-ink-soft',
             )}
           >
             {project.name}
@@ -226,8 +226,8 @@ function RailItem({
               className={cn(
                 'rounded-full px-1.5 py-0.5 text-[11px] font-medium tabular-nums',
                 selected
-                  ? 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
-                  : 'bg-slate-200/70 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+                  ? 'bg-elevated text-ink-soft dark:bg-strong dark:text-ink-soft'
+                  : 'bg-strong/70 text-ink-faint dark:bg-elevated dark:text-ink-soft',
               )}
               title={`${project.open_count} open of ${project.task_count} tasks`}
             >
@@ -251,10 +251,10 @@ function RailItem({
       </div>
 
       {menuOpen && (
-        <div className="animate-pop absolute top-9 right-1 z-30 w-40 rounded-xl bg-white p-1 shadow-lg ring-1 ring-slate-200 dark:bg-slate-800 dark:ring-slate-700">
+        <div className="animate-pop absolute top-9 right-1 z-30 w-40 rounded-xl bg-white p-1 shadow-lg ring-1 ring-line dark:bg-elevated dark:ring-line-strong">
           <MenuItem onClick={onEdit}>Edit details</MenuItem>
           <MenuItem onClick={onArchive}>{project.archived_at ? 'Restore project' : 'Archive project'}</MenuItem>
-          <div className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
+          <div className="my-1 h-px bg-strong" />
           <MenuItem onClick={onDelete} danger>
             Delete
           </MenuItem>
@@ -272,7 +272,7 @@ function MenuItem({ children, onClick, danger }: { children: React.ReactNode; on
         'w-full rounded-lg px-2.5 py-1.5 text-left text-sm transition-colors',
         danger
           ? 'text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10'
-          : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700',
+          : 'text-ink-soft hover:bg-elevated dark:text-ink dark:hover:bg-strong',
       )}
     >
       {children}

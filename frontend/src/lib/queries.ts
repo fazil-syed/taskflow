@@ -9,7 +9,7 @@ export const keys = {
   board: (projectId: number, filters: Filters) => ['board', projectId, filters] as const,
   task: (id: number) => ['task', id] as const,
   tasks: (filters: Filters) => ['tasks', filters] as const,
-  calendar: (from: string, to: string, filters: Filters) => ['calendar', from, to, filters] as const,
+  calendar: (from: string, to: string, query: string) => ['calendar', from, to, query] as const,
 }
 
 function projectIds(f: Filters) {
@@ -57,20 +57,13 @@ export function useTasks(filters: Filters) {
   })
 }
 
-export function useCalendar(from: string, to: string, filters: Filters) {
-  // The calendar intentionally ignores the priority filter: a heatmap answers
-  // "where did the work happen", not "how urgent was it".
-  const effective: Filters = { ...filters, priority: '' }
+export function useCalendar(from: string, to: string, query: string) {
+  // The calendar spans every project and every queue on purpose: the board's
+  // sidebar and columns already provide that scoping. Only the free-text search
+  // narrows it down.
   return useQuery({
-    queryKey: keys.calendar(from, to, effective),
-    queryFn: () =>
-      api.get<CalendarResponse>('/api/calendar', {
-        from,
-        to,
-        project_id: projectIds(effective),
-        status: effective.status,
-        q: effective.q,
-      }),
+    queryKey: keys.calendar(from, to, query),
+    queryFn: () => api.get<CalendarResponse>('/api/calendar', { from, to, q: query }),
     placeholderData: (prev) => prev,
   })
 }
@@ -140,14 +133,16 @@ export function useMoveTask() {
     mutationFn: ({
       id,
       status,
-      beforeId,
-      afterId,
+      prevId,
+      nextId,
     }: {
       id: number
       status: TaskStatus
-      beforeId?: number | null
-      afterId?: number | null
-    }) => api.post<Task>(`/api/tasks/${id}/move`, { status, before_id: beforeId ?? null, after_id: afterId ?? null }),
+      /** The task that should end up directly before this one, if any. */
+      prevId?: number | null
+      /** The task that should end up directly after this one, if any. */
+      nextId?: number | null
+    }) => api.post<Task>(`/api/tasks/${id}/move`, { status, prev_id: prevId ?? null, next_id: nextId ?? null }),
     onSuccess: (task) => invalidate(task.id),
   })
 }

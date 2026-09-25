@@ -6,12 +6,12 @@ type Size = 'sm' | 'md' | 'lg'
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 active:bg-indigo-700 disabled:bg-indigo-600/50 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:text-slate-950',
+    'bg-indigo-600 text-white shadow-sm hover:bg-indigo-500 active:bg-indigo-700 disabled:bg-indigo-600/50 dark:bg-indigo-500 dark:hover:bg-indigo-400 dark:text-white',
   secondary:
-    'bg-white text-slate-700 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:ring-slate-700 dark:hover:bg-slate-800',
-  ghost: 'text-slate-600 hover:bg-slate-200/70 active:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800 dark:active:bg-slate-700',
+    'bg-white text-ink-soft ring-1 ring-inset ring-line-strong hover:bg-canvas active:bg-elevated dark:bg-surface dark:text-ink dark:ring-line-strong dark:hover:bg-elevated',
+  ghost: 'text-ink-soft hover:bg-strong/70 active:bg-strong dark:text-ink-soft dark:hover:bg-elevated dark:active:bg-strong',
   subtle:
-    'bg-slate-100 text-slate-700 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
+    'bg-elevated text-ink-soft hover:bg-strong active:bg-strong dark:bg-elevated dark:text-ink dark:hover:bg-strong',
   danger: 'bg-rose-600 text-white shadow-sm hover:bg-rose-500 active:bg-rose-700 dark:bg-rose-600 dark:hover:bg-rose-500',
 }
 

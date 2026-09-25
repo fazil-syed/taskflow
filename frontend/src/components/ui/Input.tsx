@@ -2,10 +2,10 @@ import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } fro
 import { cn } from '../../lib/cn'
 
 const fieldBase =
-  'w-full rounded-lg bg-white text-slate-900 ring-1 ring-inset ring-slate-300 transition ' +
-  'placeholder:text-slate-400 hover:ring-slate-400 focus:ring-2 focus:ring-indigo-500 focus:outline-none ' +
-  'disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ' +
-  'dark:bg-slate-900 dark:text-slate-100 dark:ring-slate-700 dark:hover:ring-slate-600 dark:placeholder:text-slate-500 dark:disabled:bg-slate-900/50'
+  'w-full rounded-lg bg-white text-ink ring-1 ring-inset ring-line-strong transition ' +
+  'placeholder:text-ink-faint hover:ring-line-strong focus:ring-2 focus:ring-indigo-500 focus:outline-none ' +
+  'disabled:cursor-not-allowed disabled:bg-canvas disabled:text-ink-faint ' +
+  'dark:bg-surface dark:text-ink dark:ring-line-strong dark:hover:ring-line-strong dark:placeholder:text-slate-500 dark:disabled:bg-surface/50'
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   invalid?: boolean
@@ -53,7 +53,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         {children}
       </select>
       <svg
-        className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-slate-400"
+        className="pointer-events-none absolute top-1/2 right-2.5 size-4 -translate-y-1/2 text-ink-faint"
         viewBox="0 0 20 20"
         fill="none"
         aria-hidden
@@ -79,11 +79,11 @@ export function Field({
 }) {
   return (
     <div className={cn('space-y-1.5', className)}>
-      <label htmlFor={htmlFor} className="block text-xs font-medium tracking-wide text-slate-600 uppercase dark:text-slate-400">
+      <label htmlFor={htmlFor} className="block text-xs font-medium tracking-wide text-ink-soft uppercase">
         {label}
       </label>
       {children}
-      {hint && <p className="text-xs text-slate-500 dark:text-slate-400">{hint}</p>}
+      {hint && <p className="text-xs text-ink-faint dark:text-ink-soft">{hint}</p>}
     </div>
   )
 }
