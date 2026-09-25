@@ -18,6 +18,8 @@ No accounts, no sign-in, no external services. One command and it runs.
   <img src="docs/walkthrough.gif" width="820" alt="TaskFlow walkthrough: the board, dragging a task between queues, the task drawer, logging a day of work, the calendar and the task list">
 </p>
 
+<p align="center"><sub>A higher quality recording is in <a href="docs/walkthrough.webm">docs/walkthrough.webm</a>.</sub></p>
+
 ---
 
 ## Contents
@@ -61,11 +63,10 @@ docker compose up -d --build
 Open <http://localhost:8080>.
 
 The database schema is created automatically on first boot, so there is no
-migration step to run. On a clean install you land on an empty state with one
-button:
+migration step to run. On a clean install there is one thing to do:
 
 <p align="center">
-  <img src="docs/board.png" width="820" alt="The TaskFlow board with a project selected and three queues">
+  <img src="docs/first-run.png" width="820" alt="The empty first-run screen with a single New project button">
 </p>
 
 Want data to look at first?
@@ -99,7 +100,7 @@ the sidebar, give it a name, an optional description and a colour, then start
 adding tasks.
 
 - Click a project in the sidebar to open its board.
-- Drag projects to reorder them; the order is saved.
+- Drag a project by the handle on its left to reorder it; the order is saved.
 - The **⋯** menu on a project renames it, archives it, or deletes it along with
   all of its tasks.
 
@@ -192,7 +193,7 @@ the API answers `423 Locked` even if something tries to bypass the UI. This is t
 point of the feature: a finished task cannot be quietly rewritten.
 
 <p align="center">
-  <img src="docs/board-dark.png" width="820" alt="A finished and locked task in the Done column">
+  <img src="docs/task-locked.png" width="820" alt="The task drawer showing a finished, locked task with the Unlock to edit button">
 </p>
 
 If something really does need to change, press **Unlock to edit**. You can then
