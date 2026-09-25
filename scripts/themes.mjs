@@ -32,6 +32,11 @@ async function capture(theme) {
     } catch {}
   }, theme)
 
+  // Pick a project that actually has tasks, otherwise the board renders empty.
+  const projects = await (await page.request.get(`${BASE}/api/projects`)).json()
+  const richest = [...projects].sort((a, b) => b.task_count - a.task_count)[0]
+  const boardUrl = richest ? `/?project=${richest.id}` : '/'
+
   const shoot = async (name, url, prepare) => {
     await page.goto(`${BASE}${url}`, { waitUntil: 'networkidle' })
     await page.waitForTimeout(700)
@@ -41,16 +46,16 @@ async function capture(theme) {
     console.log(`  ${OUT}/${name}.png`)
   }
 
-  await shoot(`60-${theme}-board`, '/')
+  await shoot(`60-${theme}-board`, boardUrl)
   await shoot(`61-${theme}-tasks`, '/tasks')
   await shoot(`62-${theme}-calendar`, '/calendar')
 
-  await shoot(`63-${theme}-drawer`, '/', async (p) => {
+  await shoot(`63-${theme}-drawer`, boardUrl, async (p) => {
     await p.locator('section').filter({ has: p.locator('h2', { hasText: 'Ongoing' }) }).locator('button.w-full').first().click()
     await p.getByRole('heading', { name: 'Days worked' }).waitFor({ timeout: 10000 })
   })
 
-  await shoot(`64-${theme}-locked`, '/', async (p) => {
+  await shoot(`64-${theme}-locked`, boardUrl, async (p) => {
     await p.locator('section').filter({ has: p.locator('h2', { hasText: 'Done' }) }).locator('button.w-full').first().click()
     await p.getByText('Finished and locked').waitFor({ timeout: 10000 })
   })

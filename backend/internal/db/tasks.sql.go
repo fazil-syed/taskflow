@@ -420,6 +420,100 @@ func (q *Queries) ListCalendarEntries(ctx context.Context, arg ListCalendarEntri
 	return items, nil
 }
 
+const listExportTasks = `-- name: ListExportTasks :many
+
+SELECT
+    t.id,
+    p.name AS project_name,
+    t.title,
+    t.description,
+    t.status,
+    t.priority,
+    t.due_date,
+    t.start_date,
+    t.completed_at,
+    t.locked,
+    t.created_at,
+    COALESCE(all_days.days, 0) AS total_work_days,
+    all_days.list AS work_day_list
+FROM tasks t
+JOIN projects p ON p.id = t.project_id
+LEFT JOIN (
+    SELECT
+        task_id,
+        COUNT(*) AS days,
+        GROUP_CONCAT(work_date ORDER BY work_date SEPARATOR ' ') AS list
+    FROM task_work_days
+    GROUP BY task_id
+) all_days ON all_days.task_id = t.id
+WHERE FIND_IN_SET(t.project_id, COALESCE(NULLIF(?, ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(?, t.status)
+  AND t.priority = COALESCE(?, t.priority)
+ORDER BY p.sort_order ASC, FIELD(t.status, 'todo', 'ongoing', 'done'), t.sort_order ASC, t.id ASC
+`
+
+type ListExportTasksParams struct {
+	ProjectIds interface{}    `json:"project_ids"`
+	Status     sql.NullString `json:"status"`
+	Priority   sql.NullString `json:"priority"`
+}
+
+type ListExportTasksRow struct {
+	ID            uint64         `json:"id"`
+	ProjectName   string         `json:"project_name"`
+	Title         string         `json:"title"`
+	Description   string         `json:"description"`
+	Status        string         `json:"status"`
+	Priority      string         `json:"priority"`
+	DueDate       sql.NullTime   `json:"due_date"`
+	StartDate     sql.NullTime   `json:"start_date"`
+	CompletedAt   sql.NullTime   `json:"completed_at"`
+	Locked        bool           `json:"locked"`
+	CreatedAt     time.Time      `json:"created_at"`
+	TotalWorkDays int64          `json:"total_work_days"`
+	WorkDayList   sql.NullString `json:"work_day_list"`
+}
+
+// Export pulls every task for the selected projects along with its full work-day
+// list; the date range is applied in Go. Keeping the range out of the SQL avoids
+// repeating the same bound parameter in several places.
+func (q *Queries) ListExportTasks(ctx context.Context, arg ListExportTasksParams) ([]ListExportTasksRow, error) {
+	rows, err := q.db.QueryContext(ctx, listExportTasks, arg.ProjectIds, arg.Status, arg.Priority)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListExportTasksRow{}
+	for rows.Next() {
+		var i ListExportTasksRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProjectName,
+			&i.Title,
+			&i.Description,
+			&i.Status,
+			&i.Priority,
+			&i.DueDate,
+			&i.StartDate,
+			&i.CompletedAt,
+			&i.Locked,
+			&i.CreatedAt,
+			&i.TotalWorkDays,
+			&i.WorkDayList,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTasks = `-- name: ListTasks :many
 SELECT
     t.id,

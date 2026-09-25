@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, NavLink, Route, Routes } from 'react-router'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Link, NavLink, Route, Routes, useLocation } from 'react-router'
 import { ToastProvider } from './components/ToastProvider'
 import { IconButton } from './components/ui/Button'
 import { SpinnerBlock } from './components/ui/primitives'
@@ -9,6 +9,7 @@ import { CalendarPage } from './features/calendar/CalendarPage'
 import { TasksPage } from './features/tasks/TasksPage'
 import { useProjects } from './lib/queries'
 import { cn } from './lib/cn'
+import { pageVariants } from './lib/motion'
 
 export default function App() {
   return (
@@ -25,12 +26,13 @@ interface NavIconProps {
 
 const NAV = [
   { to: '/', label: 'Board', icon: BoardIcon },
-  { to: '/tasks', label: 'Tasks', icon: ListIcon },
   { to: '/calendar', label: 'Calendar', icon: CalendarIcon },
+  { to: '/tasks', label: 'Tasks', icon: ListIcon },
 ]
 
 function Shell() {
   const { isLoading } = useProjects()
+  const location = useLocation()
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'))
 
   useEffect(() => {
@@ -42,12 +44,12 @@ function Shell() {
     }
   }, [dark])
 
-  // Global shortcuts: n = new view shortcut target, / = focus the first search box.
+  // `/` jumps to the search box from anywhere that is not a text field.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       const typing = target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)
-      if (typing) return
+      if (typing || event.metaKey || event.ctrlKey || event.altKey) return
 
       if (event.key === '/') {
         const search = document.querySelector<HTMLInputElement>('input[aria-label="Search tasks"]')
@@ -74,8 +76,8 @@ function Shell() {
           <span className="text-[15px] font-semibold tracking-tight text-ink">TaskFlow</span>
         </Link>
 
-        {/* The nav is a segmented control: one raised surface that slides to the
-            active tab, so the header reads as a single object. */}
+        {/* One raised surface slides to the active tab, so the header reads as a
+            single object rather than three separate links. */}
         <nav className="ml-1 flex items-center gap-0.5 rounded-xl bg-canvas p-0.5 sm:ml-3 dark:bg-elevated/70">
           {NAV.map(({ to, label, icon: Icon }) => (
             <NavLink
@@ -136,16 +138,27 @@ function Shell() {
         </div>
       </header>
 
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1">
         {isLoading ? (
           <SpinnerBlock className="h-full" />
         ) : (
-          <Routes>
-            <Route path="/" element={<BoardPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="*" element={<BoardPage />} />
-          </Routes>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              variants={pageVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="h-full"
+            >
+              <Routes location={location}>
+                <Route path="/" element={<BoardPage />} />
+                <Route path="/calendar" element={<CalendarPage />} />
+                <Route path="/tasks" element={<TasksPage />} />
+                <Route path="*" element={<BoardPage />} />
+              </Routes>
+            </motion.div>
+          </AnimatePresence>
         )}
       </div>
     </div>

@@ -55,6 +55,7 @@ func (s *Server) Router(frontendDir string) http.Handler {
 	})
 
 	r.Get("/api/calendar", s.GetCalendar)
+	r.Get("/api/export", s.ExportTasks)
 
 	if frontendDir != "" {
 		fileServer := spaHandler(frontendDir)

@@ -65,6 +65,20 @@ export const cardVariants: Variants = {
   exit: { opacity: 0, scale: 0.97, transition: { duration: DURATION.fast } },
 }
 
+/** A table row appearing or disappearing. */
+export const rowVariants: Variants = {
+  hidden: { opacity: 0, y: 6 },
+  visible: { opacity: 1, y: 0, transition: { duration: DURATION.base, ease: EASE_OUT } },
+  exit: { opacity: 0, transition: { duration: 0.1 } },
+}
+
+/** A month grid sliding in as the user pages through months. */
+export const monthVariants: Variants = {
+  hidden: { opacity: 0, x: 12 },
+  visible: { opacity: 1, x: 0, transition: { duration: DURATION.base, ease: EASE_OUT } },
+  exit: { opacity: 0, x: -12, transition: { duration: DURATION.fast } },
+}
+
 /** The page body sliding in when the route changes. */
 export const pageVariants: Variants = {
   hidden: { opacity: 0, y: 6 },

@@ -6,50 +6,65 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
   /*
-   * Semantic surface + text tokens. Everything in the app refers to these
-   * rather than raw palette steps, so the whole theme is retunable from here.
-   * The light values live here; the dark palette overrides them on .dark,
-   * which works because the generated utilities read these variables.
+   * One palette, expressed as roles rather than palette steps. Every component
+   * refers to these names, so the whole app is retunable from this block.
+   *
+   * Light: a faintly cool neutral. Surfaces step up in small, even increments
+   * (canvas -> surface -> elevated -> strong) so elevation is readable without
+   * relying on heavy shadows.
    */
-  --color-canvas: #f2f4f8;
+  --color-canvas: #f6f7f9;
   --color-surface: #ffffff;
-  --color-elevated: #eaeef4;
-  --color-strong: #dde3ec;
-  --color-line: #dfe4ed;
-  --color-line-strong: #c3ccdb;
-  --color-ink: #0d1526;
-  --color-ink-soft: #46536b;
-  --color-ink-faint: #8592a8;
+  --color-elevated: #eef0f4;
+  --color-strong: #e2e5ec;
+  --color-line: #e6e8ee;
+  --color-line-strong: #ced3de;
+  --color-ink: #0e1116;
+  --color-ink-soft: #4a5162;
+  --color-ink-faint: #868d9c;
   --color-accent: #4f46e5;
+  --color-accent-soft: #eef0fe;
 
-  /* status colors */
-  --color-todo: #94a3b8;
-  --color-ongoing: #f59e0b;
-  --color-done: #10b981;
+  /* Status: readable on both themes, and never distinguished by hue alone --
+     every use is paired with a shape (hollow vs filled) or a text label. */
+  --color-status-todo: #64748b;
+  --color-status-ongoing: #d97706;
+  --color-status-done: #059669;
 
-  /* priority colors */
+  /* Priority: a single warm-to-cool ramp, so severity reads as an ordering. */
   --color-prio-urgent: #e11d48;
-  --color-prio-high: #f97316;
-  --color-prio-normal: #3b82f6;
+  --color-prio-high: #ea580c;
+  --color-prio-normal: #2563eb;
   --color-prio-low: #64748b;
 }
 
 /*
- * Dark palette: a deep blue-black canvas with four clearly separated elevation
- * levels, so cards, inputs and hover states read as distinct layers instead of
- * dissolving into one flat black.
+ * Dark: a neutral charcoal ramp with a slight cool cast. Keeping the steps
+ * closer together in hue and further apart in lightness is what stops a dark UI
+ * turning into flat black, and it lets the status colours stay saturated enough
+ * to be useful rather than muddy.
  */
 .dark {
-  --color-canvas: #0a0e16;
-  --color-surface: #141a26;
-  --color-elevated: #1c2333;
-  --color-strong: #273044;
-  --color-line: #232b3b;
-  --color-line-strong: #36415a;
-  --color-ink: #e9eef8;
-  --color-ink-soft: #a7b2c6;
-  --color-ink-faint: #74809a;
-  --color-accent: #6d78f0;
+  --color-canvas: #0b0c0e;
+  --color-surface: #131417;
+  --color-elevated: #1b1d21;
+  --color-strong: #26282d;
+  --color-line: #232529;
+  --color-line-strong: #34373d;
+  --color-ink: #f2f3f5;
+  --color-ink-soft: #a8acb5;
+  --color-ink-faint: #757a85;
+  --color-accent: #7c7cf5;
+  --color-accent-soft: #1e1f3d;
+
+  --color-status-todo: #94a3b8;
+  --color-status-ongoing: #f0a92b;
+  --color-status-done: #22c07d;
+
+  --color-prio-urgent: #fb7185;
+  --color-prio-high: #fb923c;
+  --color-prio-normal: #60a5fa;
+  --color-prio-low: #94a3b8;
 }
 
 

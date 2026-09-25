@@ -8,7 +8,6 @@ import {
   monthLabel,
   shiftMonth,
   startOfMonthGrid,
-  toDateOnly,
   today,
   weekdayLabels,
   type DateOnly,
@@ -97,8 +96,8 @@ export function MonthGrid({
                 interactive && 'cursor-pointer',
                 !interactive && 'cursor-default',
                 level > 0 && !isSelected && heatStyle(level),
-                isSelected && 'bg-indigo-600 text-white dark:bg-indigo-500',
-                isToday && !isSelected && 'ring-1 ring-indigo-400 ring-inset dark:ring-indigo-500',
+                isSelected && 'bg-accent text-white',
+                isToday && !isSelected && 'ring-1 ring-accent/50 ring-inset',
               )}
             >
               <span className={cn('font-medium', isSelected && 'text-white')}>{dayNumber}</span>
@@ -130,13 +129,13 @@ export function intensityLevel(count: number, max: number): number {
 export function heatStyle(level: number): string {
   switch (level) {
     case 1:
-      return 'bg-emerald-500/10'
+      return 'bg-status-done/10'
     case 2:
-      return 'bg-emerald-500/20'
+      return 'bg-status-done/18'
     case 3:
-      return 'bg-emerald-500/30'
+      return 'bg-status-done/28'
     default:
-      return 'bg-emerald-500/45'
+      return 'bg-status-done/42'
   }
 }
 
@@ -176,7 +175,3 @@ export function QuickDayButtons({ onPick, disabled }: { onPick: (date: DateOnly)
   )
 }
 
-export function firstOfMonth(date: DateOnly): DateOnly {
-  const d = fromDateOnly(date)
-  return toDateOnly(new Date(d.getFullYear(), d.getMonth(), 1))
-}

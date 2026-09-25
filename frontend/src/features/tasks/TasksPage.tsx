@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
@@ -9,6 +10,7 @@ import { EmptyState, PriorityFlag, ProjectBadge, Skeleton } from '../../componen
 import { useFilters } from '../../lib/filters'
 import { keys, useSetTaskStatus, useTask, useTasks } from '../../lib/queries'
 import { PRIORITY_META, STATUS_META } from '../../components/ui/primitives'
+import { rowVariants } from '../../lib/motion'
 import type { Task, TaskStatus } from '../../lib/types'
 import { daysBetween, formatDateShort, today } from '../../lib/dates'
 
@@ -133,16 +135,29 @@ export function TasksPage() {
                 </tr>
               ))}
 
-            {!isLoading &&
-              sorted.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  onOpen={() => openTaskPanel(task)}
-                  onGoToProject={(id) => navigate(`/?project=${id}`)}
-                  onSetStatus={(status) => setStatus.mutate({ id: task.id, status })}
-                />
-              ))}
+            {/* Rows animate in and out so changing a filter reads as the list
+                rearranging rather than snapping to a different set of rows. */}
+            <AnimatePresence initial={false} mode="popLayout">
+              {!isLoading &&
+                sorted.map((task, index) => (
+                  <motion.tr
+                    key={task.id}
+                    layout
+                    variants={rowVariants}
+                    initial="hidden"
+                    animate="visible"
+                    exit="exit"
+                    transition={{ delay: Math.min(index, 12) * 0.015 }}
+                  >
+                    <TaskRow
+                      task={task}
+                      onOpen={() => openTaskPanel(task)}
+                      onGoToProject={(id) => navigate(`/?project=${id}`)}
+                      onSetStatus={(status) => setStatus.mutate({ id: task.id, status })}
+                    />
+                  </motion.tr>
+                ))}
+            </AnimatePresence>
           </tbody>
         </table>
 
@@ -179,11 +194,7 @@ function TaskRow({
   const overdue = dueDelta !== null && dueDelta < 0 && task.status !== 'done'
 
   return (
-    <tr
-      className={`border-b border-line transition-colors hover:bg-canvas dark:hover:bg-elevated/40 ${
-        task.locked ? 'text-ink-soft' : ''
-      }`}
-    >
+    <>
       <td className="max-w-md px-3 py-2">
         <button onClick={onOpen} className="flex w-full items-center gap-2 text-left">
           <span
@@ -252,6 +263,6 @@ function TaskRow({
           </svg>
         </IconButton>
       </td>
-    </tr>
+    </>
   )
 }

@@ -23,6 +23,10 @@ type Querier interface {
 	// folding the "no filter" case into a COALESCE/NULLIF default. Repeating the
 	// same argument in two places makes sqlc infer conflicting types and drop it.
 	ListCalendarEntries(ctx context.Context, arg ListCalendarEntriesParams) ([]ListCalendarEntriesRow, error)
+	// Export pulls every task for the selected projects along with its full work-day
+	// list; the date range is applied in Go. Keeping the range out of the SQL avoids
+	// repeating the same bound parameter in several places.
+	ListExportTasks(ctx context.Context, arg ListExportTasksParams) ([]ListExportTasksRow, error)
 	ListProjects(ctx context.Context, includeArchived int64) ([]ListProjectsRow, error)
 	ListTasks(ctx context.Context, arg ListTasksParams) ([]ListTasksRow, error)
 	ListWorkDays(ctx context.Context, taskID uint64) ([]ListWorkDaysRow, error)

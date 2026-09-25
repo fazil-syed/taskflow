@@ -47,6 +47,12 @@ export function endOfMonthGrid(value: DateOnly): DateOnly {
   return addDays(toDateOnly(lastDay), 6 - lastDay.getDay())
 }
 
+/** The first day of the month that `value` falls in. */
+export function firstOfMonth(value: DateOnly): DateOnly {
+  const d = fromDateOnly(value)
+  return toDateOnly(new Date(d.getFullYear(), d.getMonth(), 1))
+}
+
 export function monthLabel(value: DateOnly): string {
   return fromDateOnly(value).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }

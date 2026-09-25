@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
@@ -11,6 +12,7 @@ import { Button, IconButton } from './ui/Button'
 import { Dialog } from './ui/Overlay'
 import { ProjectFormDialog } from './ProjectDialog'
 import { useToast } from './ToastProvider'
+import { popoverVariants } from '../lib/motion'
 
 export function ProjectRail({
   selectedId,
@@ -250,16 +252,24 @@ function RailItem({
         </IconButton>
       </div>
 
-      {menuOpen && (
-        <div className="animate-pop absolute top-9 right-1 z-30 w-40 rounded-xl bg-white p-1 shadow-lg ring-1 ring-line dark:bg-elevated dark:ring-line-strong">
-          <MenuItem onClick={onEdit}>Edit details</MenuItem>
-          <MenuItem onClick={onArchive}>{project.archived_at ? 'Restore project' : 'Archive project'}</MenuItem>
-          <div className="my-1 h-px bg-strong" />
-          <MenuItem onClick={onDelete} danger>
-            Delete
-          </MenuItem>
-        </div>
-      )}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            variants={popoverVariants}
+            initial="hidden"
+            animate="visible"
+            exit="exit"
+            className="absolute top-9 right-1 z-30 w-40 rounded-xl bg-surface p-1 shadow-lg ring-1 ring-line dark:bg-elevated dark:ring-line-strong"
+          >
+            <MenuItem onClick={onEdit}>Edit details</MenuItem>
+            <MenuItem onClick={onArchive}>{project.archived_at ? 'Restore project' : 'Archive project'}</MenuItem>
+            <div className="my-1 h-px bg-strong" />
+            <MenuItem onClick={onDelete} danger>
+              Delete
+            </MenuItem>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </li>
   )
 }

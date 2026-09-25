@@ -3,35 +3,46 @@ import { cn } from '../../lib/cn'
 import type { TaskPriority, TaskStatus } from '../../lib/types'
 import { formatDateShort, relativeDay, today } from '../../lib/dates'
 
-export const STATUS_META: Record<TaskStatus, { label: string; dot: string; text: string; bg: string }> = {
+/**
+ * Status and priority colours come from the theme tokens, so these components
+ * read correctly in both themes without a second set of hard-coded classes.
+ */
+export const STATUS_META: Record<
+  TaskStatus,
+  { label: string; dot: string; text: string; bg: string; color: string }
+> = {
   todo: {
     label: 'To do',
-    dot: 'border-2 border-line-strong bg-transparent',
-    text: 'text-ink-soft dark:text-ink-soft',
-    bg: 'bg-elevated dark:bg-elevated',
+    // Hollow, so "not started" is distinguishable without relying on hue.
+    dot: 'border-2 border-status-todo bg-transparent',
+    text: 'text-status-todo',
+    bg: 'bg-status-todo/12',
+    color: 'var(--color-status-todo)',
   },
   ongoing: {
     label: 'Ongoing',
-    dot: 'bg-amber-500',
-    text: 'text-amber-700 dark:text-amber-400',
-    bg: 'bg-amber-100 dark:bg-amber-500/15',
+    dot: 'bg-status-ongoing',
+    text: 'text-status-ongoing',
+    bg: 'bg-status-ongoing/15',
+    color: 'var(--color-status-ongoing)',
   },
   done: {
     label: 'Done',
-    dot: 'bg-emerald-500',
-    text: 'text-emerald-700 dark:text-emerald-400',
-    bg: 'bg-emerald-100 dark:bg-emerald-500/15',
+    dot: 'bg-status-done',
+    text: 'text-status-done',
+    bg: 'bg-status-done/15',
+    color: 'var(--color-status-done)',
   },
 }
 
 export const PRIORITY_META: Record<
   TaskPriority,
-  { label: string; text: string; bg: string; color: string; weight: number }
+  { label: string; text: string; bg: string; dot: string; color: string; weight: number }
 > = {
-  urgent: { label: 'Urgent', text: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-500/15', color: '#e11d48', weight: 4 },
-  high: { label: 'High', text: 'text-orange-700 dark:text-orange-400', bg: 'bg-orange-100 dark:bg-orange-500/15', color: '#f97316', weight: 3 },
-  normal: { label: 'Normal', text: 'text-blue-700 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/15', color: '#3b82f6', weight: 2 },
-  low: { label: 'Low', text: 'text-ink-soft dark:text-ink-soft', bg: 'bg-elevated dark:bg-elevated', color: '#64748b', weight: 1 },
+  urgent: { label: 'Urgent', text: 'text-prio-urgent', bg: 'bg-prio-urgent/12', dot: 'bg-prio-urgent', color: 'var(--color-prio-urgent)', weight: 4 },
+  high: { label: 'High', text: 'text-prio-high', bg: 'bg-prio-high/12', dot: 'bg-prio-high', color: 'var(--color-prio-high)', weight: 3 },
+  normal: { label: 'Normal', text: 'text-prio-normal', bg: 'bg-prio-normal/12', dot: 'bg-prio-normal', color: 'var(--color-prio-normal)', weight: 2 },
+  low: { label: 'Low', text: 'text-prio-low', bg: 'bg-prio-low/12', dot: 'bg-prio-low', color: 'var(--color-prio-low)', weight: 1 },
 }
 
 export const PRIORITY_ORDER: TaskPriority[] = ['urgent', 'high', 'normal', 'low']
@@ -96,10 +107,10 @@ export function DueBadge({ date, done }: { date: string; done: boolean }) {
       className={cn(
         'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs',
         overdue
-          ? 'bg-rose-100 font-medium text-rose-700 dark:bg-rose-500/15 dark:text-rose-400'
+          ? 'bg-prio-urgent/12 font-medium text-prio-urgent'
           : soon
-            ? 'bg-amber-100 font-medium text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-            : 'text-ink-faint dark:text-ink-soft',
+            ? 'bg-status-ongoing/15 font-medium text-status-ongoing'
+            : 'text-ink-faint',
       )}
       title={`Due ${formatDateShort(date)} (${relativeDay(date)})`}
     >
@@ -128,7 +139,7 @@ export function WorkDayStrip({ days, className }: { days: string[]; className?: 
         <span
           key={day}
           title={day}
-          className="size-1.5 rounded-full bg-emerald-500/80 ring-1 ring-emerald-600/20 ring-inset dark:bg-emerald-400/80"
+          className="size-1.5 rounded-full bg-status-done ring-1 ring-status-done/25 ring-inset"
         />
       ))}
       {days.length > 5 && <span className="ml-0.5 text-[10px] text-ink-faint">+{days.length - 5}</span>}

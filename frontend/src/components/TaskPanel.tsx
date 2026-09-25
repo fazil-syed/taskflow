@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ApiError } from '../lib/api'
 import { cn } from '../lib/cn'
-import { formatDate, today, type DateOnly } from '../lib/dates'
+import { firstOfMonth, formatDate, today, type DateOnly } from '../lib/dates'
 import { useToast } from './ToastProvider'
 import {
   useAddWorkDay,
@@ -19,7 +19,7 @@ import { Button } from './ui/Button'
 import { Field, Input, Select, Textarea } from './ui/Input'
 import { Dialog, Drawer } from './ui/Overlay'
 import { LockIcon, PRIORITY_META, PRIORITY_ORDER, StatusPill } from './ui/primitives'
-import { firstOfMonth, MonthGrid, QuickDayButtons } from './MonthGrid'
+import { MonthGrid, QuickDayButtons } from './MonthGrid'
 
 const STATUS_FLOW: { value: TaskStatus; label: string }[] = [
   { value: 'todo', label: 'To do' },

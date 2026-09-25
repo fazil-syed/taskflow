@@ -47,6 +47,11 @@ const titlesIn = async (name) =>
 
 /** Presses in the middle of the card and drags to a point, in small steps. */
 async function dragTo(card, x, y) {
+  // A drag that fails to activate leaves a click behind, which opens the task
+  // drawer. Its scrim then swallows the next press, so start from a clean slate.
+  await page.keyboard.press('Escape')
+  await page.waitForTimeout(350)
+
   const box = await card.boundingBox()
   const sx = box.x + box.width / 2
   const sy = box.y + box.height / 2
@@ -78,10 +83,11 @@ async function dragTo(card, x, y) {
   await page.waitForTimeout(1000)
 }
 
-const dropOnCard = async (queue, index) => {
-  const card = cardsIn(queue).nth(index)
-  const box = await card.boundingBox()
-  await dragTo(card, box.x + box.width / 2, box.y + box.height / 2)
+/** Drags the first card in a queue onto the card at `index`. */
+const dropFirstOnto = async (queue, index) => {
+  const target = cardsIn(queue).nth(index)
+  const box = await target.boundingBox()
+  await dragTo(cardsIn(queue).first(), box.x + box.width / 2, box.y + box.height / 2)
 }
 
 const dropAtEndOf = async (queue) => {
@@ -104,7 +110,7 @@ await page.waitForTimeout(600)
 
 console.log('\n[1] grab the card in the middle of its body, drop on the last card')
 check('starts as One, Two, Three, Four', JSON.stringify(await titlesIn('To do')) === '["One","Two","Three","Four"]', JSON.stringify(await titlesIn('To do')))
-await dropOnCard('To do', 3)
+await dropFirstOnto('To do', 3)
 check('dropping on the last card moves the card last', JSON.stringify(await titlesIn('To do')) === '["Two","Three","Four","One"]', JSON.stringify(await titlesIn('To do')))
 await page.screenshot({ path: '.screenshots/50-drag-to-end.png' })
 
@@ -120,7 +126,7 @@ check('card lands at the top', reordered[0] === lastTitle, `expected ${lastTitle
 await page.screenshot({ path: '.screenshots/51-drag-to-top.png' })
 
 console.log('\n[3] drop into the middle of the queue')
-await dropOnCard('To do', 1)
+await dropFirstOnto('To do', 1)
 const afterMiddle = await titlesIn('To do')
 check('queue still holds every card exactly once', afterMiddle.length === 4 && new Set(afterMiddle).size === 4, JSON.stringify(afterMiddle))
 await page.screenshot({ path: '.screenshots/52-drag-middle.png' })

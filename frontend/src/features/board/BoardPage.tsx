@@ -19,10 +19,11 @@ import { useToast } from '../../components/ToastProvider'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { ProjectRail } from '../../components/ProjectRail'
 import { NewProjectButton } from '../../components/ProjectDialog'
+import { ExportButton } from '../../components/ExportDialog'
 import { TaskCard } from '../../components/TaskCard'
 import { TaskPanel } from '../../components/TaskPanel'
 import { Button } from '../../components/ui/Button'
-import { Input } from '../../components/ui/Input'
+import { Input, Select, Textarea } from '../../components/ui/Input'
 import { Dialog } from '../../components/ui/Overlay'
 import { EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
 import { useFilters, type Filters } from '../../lib/filters'
@@ -116,13 +117,11 @@ export function BoardPage() {
   }
 
   const onDragStart = (event: DragStartEvent) => {
-    console.log('[dbg] start', event.active.id)
     setActiveDrag(taskById.get(Number(event.active.id)) ?? null)
   }
 
   const onDragOver = (event: DragOverEvent) => {
     const over = event.over
-    console.log('[dbg] over', String(over?.id), JSON.stringify(locate(over?.id as string)))
     setOverColumn(over ? (locate(over.id)?.status ?? null) : null)
   }
 
@@ -130,7 +129,6 @@ export function BoardPage() {
     setActiveDrag(null)
     setOverColumn(null)
     const { active, over } = event
-    console.log('[dbg] end active=', String(active.id), 'over=', String(over?.id))
     if (!over) return
 
     const task = taskById.get(Number(active.id))
@@ -223,6 +221,7 @@ export function BoardPage() {
               )}
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              <ExportButton projectId={selectedId} />
               {selectedId ? (
                 <NewTaskButton projectId={selectedId} />
               ) : (
@@ -398,6 +397,7 @@ function Column({
 function NewTaskButton({ projectId }: { projectId: number }) {
   const [open, setOpen] = useState(false)
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [priority, setPriority] = useState<TaskPriority>('normal')
   const [dueDate, setDueDate] = useState('')
   const create = useCreateTask(projectId)
@@ -411,11 +411,12 @@ function NewTaskButton({ projectId }: { projectId: number }) {
   const submit = () => {
     if (!title.trim()) return
     create.mutate(
-      { title: title.trim(), description: '', priority, due_date: dueDate },
+      { title: title.trim(), description: description.trim(), priority, due_date: dueDate },
       {
         onSuccess: () => {
           setOpen(false)
           setTitle('')
+          setDescription('')
           setDueDate('')
           setPriority('normal')
           toast.success('Task added to To do')
@@ -439,6 +440,7 @@ function NewTaskButton({ projectId }: { projectId: number }) {
         onClose={() => setOpen(false)}
         title="New task"
         description="It starts in the To do queue. Set a start date from the task to begin work."
+        size="md"
         footer={
           <>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
@@ -454,23 +456,26 @@ function NewTaskButton({ projectId }: { projectId: number }) {
             data-autofocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && submit()}
             placeholder="Task title"
+            aria-label="Task title"
+          />
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Notes, context or acceptance criteria (optional)"
+            aria-label="Task notes"
+            rows={4}
           />
           <div className="grid grid-cols-2 gap-3">
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              aria-label="Priority"
-              className="h-9 rounded-lg bg-white px-2 text-sm ring-1 ring-line-strong ring-inset dark:bg-surface"
-            >
+            <Select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)} aria-label="Priority">
               <option value="urgent">Urgent</option>
               <option value="high">High</option>
               <option value="normal">Normal</option>
               <option value="low">Low</option>
-            </select>
+            </Select>
             <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} aria-label="Due date" />
           </div>
+          <p className="text-xs text-ink-faint">Press ⌘ + Enter to add the task.</p>
         </div>
       </Dialog>
     </>

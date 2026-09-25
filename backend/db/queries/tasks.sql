@@ -206,3 +206,37 @@ WHERE t.due_date BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date')
   AND t.priority = COALESCE(sqlc.narg('priority'), t.priority)
   AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(sqlc.narg('q'), ''), '%')
 ORDER BY t.due_date ASC, t.id ASC;
+
+-- Export pulls every task for the selected projects along with its full work-day
+-- list; the date range is applied in Go. Keeping the range out of the SQL avoids
+-- repeating the same bound parameter in several places.
+
+-- name: ListExportTasks :many
+SELECT
+    t.id,
+    p.name AS project_name,
+    t.title,
+    t.description,
+    t.status,
+    t.priority,
+    t.due_date,
+    t.start_date,
+    t.completed_at,
+    t.locked,
+    t.created_at,
+    COALESCE(all_days.days, 0) AS total_work_days,
+    all_days.list AS work_day_list
+FROM tasks t
+JOIN projects p ON p.id = t.project_id
+LEFT JOIN (
+    SELECT
+        task_id,
+        COUNT(*) AS days,
+        GROUP_CONCAT(work_date ORDER BY work_date SEPARATOR ' ') AS list
+    FROM task_work_days
+    GROUP BY task_id
+) all_days ON all_days.task_id = t.id
+WHERE FIND_IN_SET(t.project_id, COALESCE(NULLIF(sqlc.arg('project_ids'), ''), CAST(t.project_id AS CHAR)))
+  AND t.status = COALESCE(sqlc.narg('status'), t.status)
+  AND t.priority = COALESCE(sqlc.narg('priority'), t.priority)
+ORDER BY p.sort_order ASC, FIELD(t.status, 'todo', 'ongoing', 'done'), t.sort_order ASC, t.id ASC;

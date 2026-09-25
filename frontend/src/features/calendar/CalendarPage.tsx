@@ -1,13 +1,23 @@
 import { useMemo, useState } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
-import { MonthGrid, firstOfMonth } from '../../components/MonthGrid'
+import { MonthGrid } from '../../components/MonthGrid'
 import { Button } from '../../components/ui/Button'
+import { ExportButton } from '../../components/ExportDialog'
 import { Drawer } from '../../components/ui/Overlay'
-import { EmptyState, PriorityFlag, ProjectBadge, Skeleton, StatusDot } from '../../components/ui/primitives'
-import { formatWeekdayDate, shiftMonth, today, type DateOnly } from '../../lib/dates'
-import { DURATION, EASE_OUT } from '../../lib/motion'
+import {
+  EmptyState,
+  PRIORITY_META,
+  PRIORITY_ORDER,
+  PriorityFlag,
+  ProjectBadge,
+  Skeleton,
+  STATUS_META,
+  StatusDot,
+} from '../../components/ui/primitives'
+import { firstOfMonth, formatWeekdayDate, shiftMonth, today, type DateOnly } from '../../lib/dates'
+import { DURATION, EASE_OUT, monthVariants } from '../../lib/motion'
 import { useFilters } from '../../lib/filters'
 import { useCalendar } from '../../lib/queries'
 import type { CalendarDay, CalendarEntry, Task } from '../../lib/types'
@@ -24,6 +34,7 @@ const VIEWS: { value: View; label: string; hint: string }[] = [
 export function CalendarPage() {
   const { filters } = useFilters()
   const [month, setMonth] = useState<DateOnly>(() => firstOfMonth(today()))
+  const [direction, setDirection] = useState(1)
   const [view, setView] = useState<View>('logged')
   const [selectedDate, setSelectedDate] = useState<DateOnly | null>(null)
   const navigate = useNavigate()
@@ -35,6 +46,11 @@ export function CalendarPage() {
   }, [month])
 
   const { data, isLoading } = useCalendar(range.from, range.to, { q: filters.q, priority: filters.priority })
+
+  const goToMonth = (next: DateOnly) => {
+    setDirection(next > month ? 1 : -1)
+    setMonth(next)
+  }
 
   const byDate = useMemo(() => {
     const map = new Map<DateOnly, CalendarDay>()
@@ -75,7 +91,10 @@ export function CalendarPage() {
             </p>
           </div>
 
-          <ViewSwitch view={view} onChange={setView} />
+          <div className="flex items-center gap-2">
+            <ViewSwitch view={view} onChange={setView} />
+            <ExportButton />
+          </div>
         </div>
 
         {/* Search only: the sidebar and the board columns already scope by
@@ -93,10 +112,19 @@ export function CalendarPage() {
               ))}
             </div>
           ) : (
-            <div className="rounded-2xl border border-line bg-surface p-4">
+            <div className="overflow-hidden rounded-2xl border border-line bg-surface p-4">
+              <AnimatePresence mode="wait" initial={false} custom={direction}>
+                <motion.div
+                  key={month}
+                  custom={direction}
+                  variants={monthVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
               <MonthGrid
                 month={month}
-                onMonthChange={setMonth}
+                onMonthChange={goToMonth}
                 intensity={intensity}
                 maxIntensity={maxIntensity}
                 selected={selectedDate ? new Set([selectedDate]) : undefined}
@@ -105,16 +133,14 @@ export function CalendarPage() {
                 footer={
                   <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
                     <Legend view={view} />
-                    <Button
-                      size="sm"
-                      onClick={() => setMonth(firstOfMonth(today()))}
-                      disabled={month === firstOfMonth(today())}
-                    >
+                    <Button size="sm" onClick={() => goToMonth(firstOfMonth(today()))} disabled={month === firstOfMonth(today())}>
                       Today
                     </Button>
                   </div>
                 }
               />
+                </motion.div>
+              </AnimatePresence>
             </div>
           )}
 
@@ -263,14 +289,9 @@ function dotStyle(view: View, entry: CalendarEntry): string {
 
   if (view === 'due') {
     // A due date is a commitment, so filled dots keyed to priority.
-    const color = { urgent: 'bg-rose-500', high: 'bg-orange-500', normal: 'bg-indigo-400', low: 'bg-slate-400' }[
-      entry.priority
-    ]
-    return `${color} ${fade}`
+    return `${PRIORITY_META[entry.priority].dot} ${fade}`
   }
-  if (entry.status === 'done') return `bg-emerald-500 ${fade}`
-  if (entry.status === 'ongoing') return `bg-amber-500 ${fade}`
-  return `border border-slate-400 ${fade}`
+  return `${STATUS_META[entry.status].dot} ${fade}`
 }
 
 function Legend({ view }: { view: View }) {
@@ -290,22 +311,16 @@ function Legend({ view }: { view: View }) {
         </>
       ) : (
         <>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-rose-500" /> Urgent
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-orange-500" /> High
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-indigo-400" /> Normal
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="size-2.5 rounded-full bg-slate-400" /> Low
-          </span>
+          {PRIORITY_ORDER.map((p) => (
+            <span key={p} className="inline-flex items-center gap-1.5">
+              <span className={`size-2.5 rounded-full ${PRIORITY_META[p].dot}`} />
+              {PRIORITY_META[p].label}
+            </span>
+          ))}
         </>
       )}
       <span className="inline-flex items-center gap-1.5">
-        <span className="size-2.5 rounded-sm bg-emerald-500/25" /> More on that day
+        <span className="size-2.5 rounded-sm bg-status-done/25" /> More on that day
       </span>
     </div>
   )
