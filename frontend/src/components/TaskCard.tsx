@@ -68,6 +68,7 @@ export const TaskCard = memo(function TaskCard({
       >
         <button
           type="button"
+          data-task-id={task.id}
           onClick={() => onOpen(task)}
           className={cn(
             'w-full rounded-xl border border-line bg-surface p-3 text-left shadow-xs transition-colors',

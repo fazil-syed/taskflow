@@ -52,12 +52,7 @@ async function dragCard(card, target) {
 
 console.log(`\ninteractions against ${BASE}`)
 
-// Start from a known state.
-const res = await page.request.delete(`${BASE}/api/projects/1`, { failOnStatusCode: false })
-await page.request.delete(`${BASE}/api/projects/2`, { failOnStatusCode: false })
-await page.request.delete(`${BASE}/api/projects/3`, { failOnStatusCode: false })
-void res
-
+// A dedicated project, so the test never touches anything else in the database.
 const project = await (await page.request.post(`${BASE}/api/projects`, { data: { name: 'Drag test', color: '#6366f1' } })).json()
 const projectId = project.id
 const mk = async (title) =>
@@ -121,7 +116,7 @@ await page.screenshot({ path: '.screenshots/42-drawer-live.png' })
 await page.getByRole('button', { name: 'Done', exact: true }).click()
 await page.getByRole('button', { name: 'Finish and lock' }).click()
 await page.waitForTimeout(1300)
-const lockedBanner = await page.getByText('Finished and locked').isVisible().catch(() => false)
+const lockedBanner = await page.getByText('Finished and locked').first().isVisible().catch(() => false)
 check('drawer shows the locked state immediately', lockedBanner)
 check('title is read-only when locked', await page.getByLabel('Title').isDisabled())
 await page.screenshot({ path: '.screenshots/43-drawer-locked.png' })
@@ -136,6 +131,9 @@ await page.waitForTimeout(700)
 await page.click('a[aria-label="TaskFlow home"]')
 await page.waitForTimeout(900)
 check('logo navigates to the board', new URL(page.url()).pathname === '/', page.url())
+
+// Clean up only what this run created.
+await page.request.delete(`${BASE}/api/projects/${project.id}`).catch(() => {})
 
 await browser.close()
 

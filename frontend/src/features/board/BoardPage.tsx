@@ -48,7 +48,23 @@ export function BoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
 
-  const selectedId = Number(searchParams.get('project')) || projects[0]?.id || null
+  // The project in the URL may have been deleted (or archived) since the link
+  // was made, so fall back to the first available project rather than showing an
+  // empty board with no way back.
+  const requestedId = Number(searchParams.get('project')) || null
+  const selectedId = useMemo(() => {
+    if (projects.length === 0) return null
+    if (requestedId !== null && projects.some((p) => p.id === requestedId)) return requestedId
+    return projects[0].id
+  }, [projects, requestedId])
+
+  // Keep the address bar honest so the stale id does not come back on reload.
+  useEffect(() => {
+    if (requestedId === null || requestedId === selectedId) return
+    const next = new URLSearchParams(searchParams)
+    next.set('project', String(selectedId))
+    setSearchParams(next, { replace: true })
+  }, [requestedId, selectedId, searchParams, setSearchParams])
   const { data: board, isLoading } = useBoard(selectedId, filters)
   const moveTask = useMoveTask()
   const complete = useCompleteTask()
@@ -142,17 +158,28 @@ export function BoardPage() {
     // by one and same-column reorders appear to do nothing.
     const sourceList = columns.get(target.status) ?? []
     const withoutTask = sourceList.filter((t) => t.id !== task.id)
+    const ownIndex = sourceList.findIndex((t) => t.id === task.id)
 
     let insertAt = withoutTask.length
     if (target.index !== -1) {
       const overIndex = sourceList.findIndex((t) => t.id === Number(over.id))
       insertAt = overIndex === -1 ? withoutTask.length : overIndex
+
+      // Releasing on the lower half of a card means "after it", the upper half
+      // means "before it". Without this, dropping onto a card always lands the
+      // card above it, which makes reordering feel broken.
+      if (overIndex !== -1 && active.rect.current.translated) {
+        const overEl = document.querySelector(`[data-task-id="${over.id}"]`)
+        if (overEl) {
+          const rect = overEl.getBoundingClientRect()
+          const dragged = active.rect.current.translated
+          if (dragged.top + dragged.height / 2 >= rect.top + rect.height / 2) insertAt += 1
+        }
+      }
+
       // The dragged card is no longer in the list, so anything after where it
       // used to sit shifts one place earlier.
-      if (task.status === target.status) {
-        const ownIndex = sourceList.findIndex((t) => t.id === task.id)
-        if (ownIndex !== -1 && ownIndex < insertAt) insertAt -= 1
-      }
+      if (task.status === target.status && ownIndex !== -1 && ownIndex < insertAt) insertAt -= 1
     }
     insertAt = Math.max(0, Math.min(insertAt, withoutTask.length))
 

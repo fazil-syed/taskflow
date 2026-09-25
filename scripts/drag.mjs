@@ -83,11 +83,22 @@ async function dragTo(card, x, y) {
   await page.waitForTimeout(1000)
 }
 
-/** Drags the first card in a queue onto the card at `index`. */
-const dropFirstOnto = async (queue, index) => {
+/**
+ * Drags the first card in a queue onto the card at `index`, aiming at `fraction`
+ * of that card's height: 0.25 lands above it, 0.75 lands below it. Aiming off
+ * centre keeps the before/after half of the card unambiguous.
+ */
+const dropFirstOnto = async (queue, index, fraction = 0.75) => {
   const target = cardsIn(queue).nth(index)
   const box = await target.boundingBox()
-  await dragTo(cardsIn(queue).first(), box.x + box.width / 2, box.y + box.height / 2)
+  await dragTo(cardsIn(queue).first(), box.x + box.width / 2, box.y + box.height * fraction)
+}
+
+/** Drags the last card in a queue onto the card at `index`. */
+const dropLastOnto = async (queue, index, fraction = 0.25) => {
+  const target = cardsIn(queue).nth(index)
+  const box = await target.boundingBox()
+  await dragTo(cardsIn(queue).last(), box.x + box.width / 2, box.y + box.height * fraction)
 }
 
 const dropAtEndOf = async (queue) => {
@@ -96,9 +107,7 @@ const dropAtEndOf = async (queue) => {
   await dragTo(cardsIn(queue).first(), box.x + box.width / 2, box.y + box.height - 30)
 }
 
-// Fresh project with four known cards.
-const existing = await (await page.request.get(`${BASE}/api/projects`)).json()
-for (const p of existing) await page.request.delete(`${BASE}/api/projects/${p.id}`)
+// A dedicated project, so the test never touches anything else in the database.
 const project = await (await page.request.post(`${BASE}/api/projects`, { data: { name: 'Drag test', color: '#6366f1' } })).json()
 for (const title of ['One', 'Two', 'Three', 'Four']) {
   await page.request.post(`${BASE}/api/projects/${project.id}/tasks`, { data: { title } })
@@ -115,18 +124,15 @@ check('dropping on the last card moves the card last', JSON.stringify(await titl
 await page.screenshot({ path: '.screenshots/50-drag-to-end.png' })
 
 console.log('\n[2] drag the last card to the top')
-await dropAtEndOf('To do')
-const last = cardsIn('To do').last()
-const lastTitle = (await last.innerText()).split('\n')[0].trim()
-const colBox = await column('To do').boundingBox()
-// drop into the empty space just under the header, above the first card
-await dragTo(last, colBox.x + colBox.width / 2, colBox.y + 70)
+const lastTitle = (await cardsIn('To do').last().innerText()).split('\n')[0].trim()
+// aim at the upper part of the first card so it lands above everything
+await dropLastOnto('To do', 0, 0.2)
 const reordered = await titlesIn('To do')
 check('card lands at the top', reordered[0] === lastTitle, `expected ${lastTitle} first, got ${JSON.stringify(reordered)}`)
 await page.screenshot({ path: '.screenshots/51-drag-to-top.png' })
 
 console.log('\n[3] drop into the middle of the queue')
-await dropFirstOnto('To do', 1)
+await dropFirstOnto('To do', 1, 0.2)
 const afterMiddle = await titlesIn('To do')
 check('queue still holds every card exactly once', afterMiddle.length === 4 && new Set(afterMiddle).size === 4, JSON.stringify(afterMiddle))
 await page.screenshot({ path: '.screenshots/52-drag-middle.png' })
@@ -153,6 +159,9 @@ check('all four cards still present', afterReload.length === 4, JSON.stringify(a
 const server = await (await page.request.get(`${BASE}/api/projects/${project.id}/board`)).json()
 const serverOrder = server.columns.find((c) => c.status === 'todo').tasks.map((t) => t.title)
 check('server order matches the board', JSON.stringify(serverOrder) === JSON.stringify(afterReload), `${JSON.stringify(serverOrder)} vs ${JSON.stringify(afterReload)}`)
+
+// Clean up only what this run created.
+await page.request.delete(`${BASE}/api/projects/${project.id}`).catch(() => {})
 
 await browser.close()
 console.log('')
