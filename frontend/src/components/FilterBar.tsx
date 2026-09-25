@@ -32,14 +32,21 @@ export function FilterBar({
   right,
 }: {
   /**
-   * `full` shows every filter. `search` shows only the search box, which is what
-   * the calendar needs: the queues and the project sidebar already scope the
-   * board, so repeating those filters on a cross-project view is noise.
+   * Which filters make sense here:
+   * - `full` (task list): spans every project and queue, so it needs them all.
+   * - `board`: the sidebar already picks one project and the three columns are
+   *   already split by status, so those two would be noise.
+   * - `calendar`: spans everything, but the board's columns and sidebar give the
+   *   scoping, so only search and priority are useful.
    */
-  variant?: 'full' | 'search'
+  variant?: 'full' | 'board' | 'calendar'
   right?: React.ReactNode
 }) {
-  const showAll = variant === 'full'
+  const show = {
+    project: variant === 'full',
+    status: variant === 'full',
+    due: variant !== 'calendar',
+  }
   const { filters, update, clear, count } = useFilters()
   const { data: projects = [] } = useProjects()
   const [query, setQuery] = useState(filters.q)
@@ -72,50 +79,53 @@ export function FilterBar({
         />
       </div>
 
-      {showAll && (
-        <>
-          <ProjectFilter projects={projects} selected={filters.projects} onChange={(ids) => update({ projects: ids })} />
+      {show.project && (
+        <ProjectFilter projects={projects} selected={filters.projects} onChange={(ids) => update({ projects: ids })} />
+      )}
 
-          <Select
-            aria-label="Filter by status"
+      {show.status && (
+        <Select
+          aria-label="Filter by status"
             value={filters.status}
             onChange={(e) => update({ status: e.target.value as TaskStatus | '' })}
             className="w-auto min-w-[8.5rem]"
           >
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            aria-label="Filter by priority"
-            value={filters.priority}
-            onChange={(e) => update({ priority: e.target.value as TaskPriority | '' })}
-            className="w-auto min-w-[8.5rem]"
-          >
-            {PRIORITY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-
-          <Select
-            aria-label="Filter by due date"
-            value={filters.due}
-            onChange={(e) => update({ due: e.target.value as DueFilter })}
-            className="w-auto min-w-[9rem]"
-          >
-            {DUE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </Select>
-        </>
+          {STATUS_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
       )}
+
+      {show.due && (
+        <Select
+          aria-label="Filter by due date"
+          value={filters.due}
+          onChange={(e) => update({ due: e.target.value as DueFilter })}
+          className="w-auto min-w-[9rem]"
+        >
+          {DUE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </Select>
+      )}
+
+      {/* Priority is useful everywhere, including the calendar. */}
+      <Select
+        aria-label="Filter by priority"
+        value={filters.priority}
+        onChange={(e) => update({ priority: e.target.value as TaskPriority | '' })}
+        className="w-auto min-w-[8.5rem]"
+      >
+        {PRIORITY_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </Select>
 
       {count > 0 && (
         <Button variant="ghost" size="sm" onClick={clear} className="text-ink-faint">

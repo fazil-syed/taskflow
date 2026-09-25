@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { MonthGrid, firstOfMonth } from '../../components/MonthGrid'
@@ -7,7 +7,7 @@ import { Button } from '../../components/ui/Button'
 import { Drawer } from '../../components/ui/Overlay'
 import { EmptyState, PriorityFlag, ProjectBadge, Skeleton, StatusDot } from '../../components/ui/primitives'
 import { formatWeekdayDate, shiftMonth, today, type DateOnly } from '../../lib/dates'
-import { DURATION, EASE_OUT, popoverVariants } from '../../lib/motion'
+import { DURATION, EASE_OUT } from '../../lib/motion'
 import { useFilters } from '../../lib/filters'
 import { useCalendar } from '../../lib/queries'
 import type { CalendarDay, CalendarEntry, Task } from '../../lib/types'
@@ -34,8 +34,7 @@ export function CalendarPage() {
     return { from: first, to: shiftMonth(firstOfMonth(shiftMonth(first, 1)), 1) }
   }, [month])
 
-  const { data, isLoading } = useCalendar(range.from, range.to, filters.q)
-  const debouncedQuery = filters.q
+  const { data, isLoading } = useCalendar(range.from, range.to, { q: filters.q, priority: filters.priority })
 
   const byDate = useMemo(() => {
     const map = new Map<DateOnly, CalendarDay>()
@@ -81,7 +80,7 @@ export function CalendarPage() {
 
         {/* Search only: the sidebar and the board columns already scope by
             project and status, so those filters would be redundant here. */}
-        <FilterBar variant="search" />
+        <FilterBar variant="calendar" />
         <ActiveFilterChips />
       </header>
 
@@ -256,10 +255,6 @@ function Dots({ view, entries }: { view: View; entries: CalendarEntry[] }) {
 }
 
 function weight(entry: CalendarEntry): number {
-  return view_weight(entry)
-}
-
-function view_weight(entry: CalendarEntry): number {
   return { urgent: 4, high: 3, normal: 2, low: 1 }[entry.priority]
 }
 

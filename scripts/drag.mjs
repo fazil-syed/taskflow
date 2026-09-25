@@ -20,9 +20,25 @@ const check = (label, ok, detail = '') => {
 
 const browser = await chromium.launch({ channel: 'chrome' })
 const page = await browser.newPage({ viewport: { width: 1600, height: 950 } })
+
+const DEBUG = process.env.DEBUG_DRAG === '1'
+if (DEBUG) {
+  page.on('request', (r) => {
+    if (r.url().includes('/move')) console.log(`    -> ${r.method()} ${r.postData()}`)
+  })
+  page.on('response', async (r) => {
+    if (r.url().includes('/move')) console.log(`    <- ${r.status()} ${(await r.text().catch(() => '')).slice(0, 120)}`)
+  })
+}
 const errors = []
 page.on('pageerror', (e) => errors.push(e.message))
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()))
+page.on('console', (m) => {
+  if (m.text().startsWith('[dbg]')) {
+    if (DEBUG) console.log(`    ${m.text()}`)
+    return
+  }
+  if (m.type() === 'error') errors.push(m.text())
+})
 
 const column = (name) => page.locator('section').filter({ has: page.locator('h2', { hasText: name }) }).first()
 const cardsIn = (name) => column(name).locator('button.w-full')
@@ -34,6 +50,23 @@ async function dragTo(card, x, y) {
   const box = await card.boundingBox()
   const sx = box.x + box.width / 2
   const sy = box.y + box.height / 2
+  if (DEBUG) {
+    const info = await page.evaluate(
+      ([px, py]) => {
+        const el = document.elementFromPoint(px, py)
+        if (!el) return 'nothing'
+        const parts = []
+        let node = el
+        for (let i = 0; i < 4 && node; i++) {
+          parts.push(`${node.tagName.toLowerCase()}${node.className ? '.' + String(node.className).split(' ').slice(0, 3).join('.') : ''}`)
+          node = node.parentElement
+        }
+        return parts.join(' < ')
+      },
+      [sx, sy],
+    )
+    console.log(`    press at (${Math.round(sx)},${Math.round(sy)}) over: ${info}`)
+  }
   await page.mouse.move(sx, sy)
   await page.mouse.down()
   for (let i = 1; i <= 15; i++) {

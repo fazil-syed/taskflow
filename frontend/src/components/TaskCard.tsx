@@ -36,8 +36,10 @@ export const TaskCard = memo(function TaskCard({
     // queue; the inner one carries the dnd-kit drag offset. Keeping them
     // separate stops the two transform systems from fighting.
     <motion.div
-      layout={!isOverlay}
-      layoutId={isOverlay ? undefined : `task-${task.id}`}
+      // No `layout` here on purpose: Framer's layout engine and dnd-kit both
+      // drive transforms on the same cards, and the layout pass wins often
+      // enough to break the drag's hit-testing. dnd-kit already animates
+      // reordering, and the enter/exit variants cover queue changes.
       initial={isOverlay ? false : 'hidden'}
       animate="visible"
       exit="exit"

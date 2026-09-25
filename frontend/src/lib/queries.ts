@@ -9,7 +9,7 @@ export const keys = {
   board: (projectId: number, filters: Filters) => ['board', projectId, filters] as const,
   task: (id: number) => ['task', id] as const,
   tasks: (filters: Filters) => ['tasks', filters] as const,
-  calendar: (from: string, to: string, query: string) => ['calendar', from, to, query] as const,
+  calendar: (from: string, to: string, q: string, priority: string) => ['calendar', from, to, q, priority] as const,
 }
 
 function projectIds(f: Filters) {
@@ -57,13 +57,14 @@ export function useTasks(filters: Filters) {
   })
 }
 
-export function useCalendar(from: string, to: string, query: string) {
+export function useCalendar(from: string, to: string, filters: Pick<Filters, 'q' | 'priority'>) {
   // The calendar spans every project and every queue on purpose: the board's
-  // sidebar and columns already provide that scoping. Only the free-text search
-  // narrows it down.
+  // sidebar and columns already provide that scoping, so only search and
+  // priority narrow this view down.
   return useQuery({
-    queryKey: keys.calendar(from, to, query),
-    queryFn: () => api.get<CalendarResponse>('/api/calendar', { from, to, q: query }),
+    queryKey: keys.calendar(from, to, filters.q, filters.priority),
+    queryFn: () =>
+      api.get<CalendarResponse>('/api/calendar', { from, to, q: filters.q, priority: filters.priority }),
     placeholderData: (prev) => prev,
   })
 }

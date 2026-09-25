@@ -25,7 +25,7 @@ import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { Dialog } from '../../components/ui/Overlay'
 import { EmptyState, Skeleton, StatusDot } from '../../components/ui/primitives'
-import { useFilters } from '../../lib/filters'
+import { useFilters, type Filters } from '../../lib/filters'
 import { keys, useBoard, useCompleteTask, useCreateTask, useMoveTask, useProjects, useTask } from '../../lib/queries'
 import type { Task, TaskPriority, TaskStatus } from '../../lib/types'
 
@@ -38,7 +38,11 @@ const COLUMNS: { status: TaskStatus; title: string; hint: string }[] = [
 const COLUMN_PREFIX = 'col-'
 
 export function BoardPage() {
-  const { filters, clear } = useFilters()
+  const { filters: urlFilters, clear } = useFilters()
+
+  // The sidebar picks the project and the columns are the status split, so those
+  // two filters are not offered here and are ignored if present in the URL.
+  const filters = useMemo<Filters>(() => ({ ...urlFilters, projects: [], status: '' }), [urlFilters])
   const { data: projects = [] } = useProjects()
   const [searchParams, setSearchParams] = useSearchParams()
   const toast = useToast()
@@ -112,11 +116,13 @@ export function BoardPage() {
   }
 
   const onDragStart = (event: DragStartEvent) => {
+    console.log('[dbg] start', event.active.id)
     setActiveDrag(taskById.get(Number(event.active.id)) ?? null)
   }
 
   const onDragOver = (event: DragOverEvent) => {
     const over = event.over
+    console.log('[dbg] over', String(over?.id), JSON.stringify(locate(over?.id as string)))
     setOverColumn(over ? (locate(over.id)?.status ?? null) : null)
   }
 
@@ -124,6 +130,7 @@ export function BoardPage() {
     setActiveDrag(null)
     setOverColumn(null)
     const { active, over } = event
+    console.log('[dbg] end active=', String(active.id), 'over=', String(over?.id))
     if (!over) return
 
     const task = taskById.get(Number(active.id))
@@ -224,7 +231,7 @@ export function BoardPage() {
             </div>
           </div>
 
-          <FilterBar />
+          <FilterBar variant="board" />
           <ActiveFilterChips />
         </header>
 

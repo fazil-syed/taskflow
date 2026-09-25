@@ -132,7 +132,7 @@ assert_eq "malformed work day is rejected" 400 \
 echo
 echo "reordering and moving"
 MOVE_BODY=$(body -X POST "$API/tasks/$T2_ID/move" -H 'Content-Type: application/json' \
-  -d "{\"status\":\"ongoing\",\"after_id\":$T1_ID}")
+  -d "{\"status\":\"ongoing\",\"prev_id\":$T1_ID}")
 assert_contains "move between queues" '"status":"ongoing"' "$MOVE_BODY"
 assert_contains "moved task lands after its neighbour" "$T2_ID" \
   "$(body "$API/projects/$PROJECT_ID/board" | python3 -c "
@@ -167,14 +167,33 @@ body -X POST "$API/tasks/$T2_ID/work-days" -H 'Content-Type: application/json' -
 
 echo
 echo "calendar"
-CAL=$(body "$API/calendar?from=2026-09-01&to=2026-09-30")
+CAL=$(body "$API/calendar?from=2026-09-01&to=2026-09-30&project_id=$PROJECT_ID")
 assert_contains "calendar returns days" '"days"' "$CAL"
-assert_contains "calendar counts the logged day" '"total":1' "$CAL"
+assert_contains "calendar counts the logged day" '"logged":1' "$CAL"
 assert_contains "calendar names the project" 'Website redesign' "$CAL"
 assert_contains "calendar carries the task status" '"status":"ongoing"' "$CAL"
 assert_contains "calendar names the task" 'Ship the blog' "$CAL"
+assert_contains "calendar exposes due dates too" '"due_tasks"' "$CAL"
+assert_contains "calendar totals the union" '"both":' "$CAL"
+
+DUE=$(body -X POST "$API/projects/$PROJECT_ID/tasks" -H 'Content-Type: application/json' \
+  -d '{"title":"Due soon","priority":"urgent","due_date":"2026-09-15"}')
+DUE_ID=$(echo "$DUE" | jqf "['id']")
+CAL_DUE=$(body "$API/calendar?from=2026-09-01&to=2026-09-30&project_id=$PROJECT_ID")
+assert_contains "a due date shows up on the calendar" 'Due soon' "$CAL_DUE"
+assert_contains "due entries are counted" '"due":1' "$CAL_DUE"
+# "Ship the blog" is the task that still has a logged work day at this point.
+assert_contains "calendar priority filter works" 'Ship the blog' \
+  "$(body "$API/calendar?from=2026-09-01&to=2026-09-30&project_id=$PROJECT_ID&priority=urgent")"
+assert_missing "calendar priority filter excludes other priorities" 'Ship the blog' \
+  "$(body "$API/calendar?from=2026-09-01&to=2026-09-30&project_id=$PROJECT_ID&priority=low")"
+assert_eq "calendar ignores a status filter it does not offer" 200 \
+  "$(code "$API/calendar?from=2026-09-01&to=2026-09-30&status=todo")"
+body -X DELETE "$API/tasks/$DUE_ID" > /dev/null
+# The calendar UI only offers search and priority, but the endpoint still honours
+# status and project, which keeps it scriptable.
 assert_eq "calendar status filter can empty it" '[]' \
-  "$(body "$API/calendar?from=2026-09-01&to=2026-09-30&status=done" | python3 -c "
+  "$(body "$API/calendar?from=2026-09-01&to=2026-09-30&project_id=$PROJECT_ID&status=done" | python3 -c "
 import json,sys
 print(json.load(sys.stdin)['days'])")"
 assert_contains "calendar tolerates a priority param" '"days"' \

@@ -183,6 +183,7 @@ JOIN projects p ON p.id = t.project_id
 WHERE w.work_date BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date')
   AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(sqlc.arg('project_ids'), ''), CAST(t.project_id AS CHAR)))
   AND t.status = COALESCE(sqlc.narg('status'), t.status)
+  AND t.priority = COALESCE(sqlc.narg('priority'), t.priority)
   AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(sqlc.narg('q'), ''), '%')
 ORDER BY w.work_date ASC, t.id ASC;
 
@@ -202,5 +203,6 @@ JOIN projects p ON p.id = t.project_id
 WHERE t.due_date BETWEEN sqlc.arg('from_date') AND sqlc.arg('to_date')
   AND FIND_IN_SET(t.project_id, COALESCE(NULLIF(sqlc.arg('project_ids'), ''), CAST(t.project_id AS CHAR)))
   AND t.status = COALESCE(sqlc.narg('status'), t.status)
+  AND t.priority = COALESCE(sqlc.narg('priority'), t.priority)
   AND CONCAT_WS(' ', t.title, t.description) LIKE CONCAT('%', COALESCE(sqlc.narg('q'), ''), '%')
 ORDER BY t.due_date ASC, t.id ASC;

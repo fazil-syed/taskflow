@@ -83,11 +83,16 @@ const kindStyles: Record<ToastKind, string> = {
 
 function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   return (
-    <div
+    <motion.div
+      layout
       role="status"
+      variants={toastVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       className={cn(
-        'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl bg-white px-4 py-3 shadow-lg ring-1',
-        'animate-pop dark:bg-elevated',
+        'pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl bg-surface px-4 py-3 shadow-lg ring-1',
+        'dark:bg-elevated',
         kindStyles[toast.kind],
       )}
     >
@@ -122,3 +127,4 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     </motion.div>
   )
 }
+

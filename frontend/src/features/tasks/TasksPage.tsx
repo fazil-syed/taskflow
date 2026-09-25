@@ -1,14 +1,13 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
-import { useToast } from '../../components/ToastProvider'
 import { ActiveFilterChips, FilterBar } from '../../components/FilterBar'
 import { TaskPanel } from '../../components/TaskPanel'
 import { Button, IconButton } from '../../components/ui/Button'
 import { Select } from '../../components/ui/Input'
 import { EmptyState, PriorityFlag, ProjectBadge, Skeleton } from '../../components/ui/primitives'
 import { useFilters } from '../../lib/filters'
-import { keys, useDeleteTask, useSetTaskStatus, useTasks, useTask } from '../../lib/queries'
+import { keys, useSetTaskStatus, useTask, useTasks } from '../../lib/queries'
 import { PRIORITY_META, STATUS_META } from '../../components/ui/primitives'
 import type { Task, TaskStatus } from '../../lib/types'
 import { daysBetween, formatDateShort, today } from '../../lib/dates'
@@ -30,12 +29,9 @@ export function TasksPage() {
   const { filters } = useFilters()
   const { data: tasks = [], isLoading } = useTasks(filters)
   const setStatus = useSetTaskStatus()
-  const removeTask = useDeleteTask()
-  const toast = useToast()
   const navigate = useNavigate()
 
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'updated', dir: 'desc' })
-  const [selected, setSelected] = useState<Set<number>>(new Set())
   // Keep the id rather than a snapshot so the drawer reflects later edits.
   const [openTaskId, setOpenTaskId] = useState<number | null>(null)
   const openTask = useTask(openTaskId)
@@ -84,48 +80,6 @@ export function TasksPage() {
     setSort((prev) => (prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }))
   }
 
-  const allSelected = sorted.length > 0 && sorted.every((t) => selected.has(t.id))
-  const selectedTasks = sorted.filter((t) => selected.has(t.id))
-  const lockedSelected = selectedTasks.filter((t) => t.locked).length
-
-  const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(sorted.map((t) => t.id)))
-  }
-
-  const bulkMove = (status: TaskStatus) => {
-    const movable = selectedTasks.filter((t) => !t.locked)
-    const skipped = selectedTasks.length - movable.length
-    for (const task of movable) {
-      setStatus.mutate(
-        { id: task.id, status },
-        { onError: () => toast.error(`Could not move “${task.title}”`) },
-      )
-    }
-    setSelected(new Set())
-    toast.success(
-      skipped > 0
-        ? `Moved ${movable.length} task${movable.length === 1 ? '' : 's'}, skipped ${skipped} locked`
-        : `Moved ${movable.length} task${movable.length === 1 ? '' : 's'}`,
-    )
-  }
-
-  const bulkDelete = () => {
-    const deletable = selectedTasks.filter((t) => !t.locked)
-    const skipped = selectedTasks.length - deletable.length
-    for (const task of deletable) {
-      removeTask.mutate(
-        { id: task.id },
-        { onError: () => toast.error(`Could not delete “${task.title}”`) },
-      )
-    }
-    setSelected(new Set())
-    toast.success(
-      skipped > 0
-        ? `Deleted ${deletable.length}, skipped ${skipped} locked task${skipped === 1 ? '' : 's'}`
-        : `Deleted ${deletable.length} task${deletable.length === 1 ? '' : 's'}`,
-    )
-  }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="shrink-0 space-y-3 border-b border-line px-5 py-4">
@@ -141,45 +95,10 @@ export function TasksPage() {
         <ActiveFilterChips />
       </header>
 
-      {selected.size > 0 && (
-        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line bg-indigo-50 px-5 py-2.5 dark:bg-indigo-500/10">
-          <span className="text-sm font-medium text-ink-soft dark:text-ink">
-            {selected.size} selected
-          </span>
-          <div className="flex items-center gap-1.5">
-            {(['todo', 'ongoing'] as TaskStatus[]).map((status) => (
-              <Button key={status} size="sm" onClick={() => bulkMove(status)}>
-                Move to {STATUS_META[status].label.toLowerCase()}
-              </Button>
-            ))}
-            <Button size="sm" variant="danger" onClick={bulkDelete}>
-              Delete
-            </Button>
-          </div>
-          {lockedSelected > 0 && (
-            <span className="text-xs text-ink-faint dark:text-ink-soft">
-              {lockedSelected} locked task{lockedSelected === 1 ? '' : 's'} will be skipped
-            </span>
-          )}
-          <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setSelected(new Set())}>
-            Clear selection
-          </Button>
-        </div>
-      )}
-
       <div className="panel-scroll min-h-0 flex-1 overflow-auto">
         <table className="w-full min-w-[60rem] border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-canvas/95 backdrop-blur dark:bg-surface/95">
             <tr className="border-b border-line">
-              <th className="w-10 px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  aria-label="Select all tasks"
-                  className="size-4 cursor-pointer rounded border-line-strong text-indigo-600"
-                />
-              </th>
               {COLUMNS.map((column) => (
                 <th key={column.key} className="px-3 py-2 text-left">
                   <button
@@ -208,7 +127,7 @@ export function TasksPage() {
             {isLoading &&
               Array.from({ length: 8 }).map((_, i) => (
                 <tr key={i} className="border-b border-line dark:border-line/60">
-                  <td colSpan={COLUMNS.length + 1} className="px-3 py-2">
+                  <td colSpan={COLUMNS.length} className="px-3 py-2">
                     <Skeleton className="h-6 w-full" />
                   </td>
                 </tr>
@@ -219,13 +138,6 @@ export function TasksPage() {
                 <TaskRow
                   key={task.id}
                   task={task}
-                  selected={selected.has(task.id)}
-                  onToggle={() => {
-                    const next = new Set(selected)
-                    if (next.has(task.id)) next.delete(task.id)
-                    else next.add(task.id)
-                    setSelected(next)
-                  }}
                   onOpen={() => openTaskPanel(task)}
                   onGoToProject={(id) => navigate(`/?project=${id}`)}
                   onSetStatus={(status) => setStatus.mutate({ id: task.id, status })}
@@ -254,15 +166,11 @@ export function TasksPage() {
 
 function TaskRow({
   task,
-  selected,
-  onToggle,
   onOpen,
   onGoToProject,
   onSetStatus,
 }: {
   task: Task
-  selected: boolean
-  onToggle: () => void
   onOpen: () => void
   onGoToProject: (id: number) => void
   onSetStatus: (status: TaskStatus) => void
@@ -272,20 +180,10 @@ function TaskRow({
 
   return (
     <tr
-      className={`border-b border-line transition-colors dark:border-line/60 ${
-        selected ? 'bg-indigo-50/70 dark:bg-indigo-500/10' : 'hover:bg-canvas dark:hover:bg-elevated/40'
-      } ${task.locked ? 'text-ink-faint dark:text-ink-soft' : ''}`}
+      className={`border-b border-line transition-colors hover:bg-canvas dark:hover:bg-elevated/40 ${
+        task.locked ? 'text-ink-soft' : ''
+      }`}
     >
-      <td className="px-3 py-2">
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onToggle}
-          aria-label={`Select ${task.title}`}
-          className="size-4 cursor-pointer rounded border-line-strong text-indigo-600"
-        />
-      </td>
-
       <td className="max-w-md px-3 py-2">
         <button onClick={onOpen} className="flex w-full items-center gap-2 text-left">
           <span

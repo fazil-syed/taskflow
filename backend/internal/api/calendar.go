@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"sort"
@@ -27,18 +28,18 @@ type calendarDayDTO struct {
 	// Due counts the tasks whose due date falls on this day.
 	Due int `json:"due"`
 	// Both is the union, used when a caller does not pick a view.
-	Both  int                 `json:"both"`
+	Both  int                `json:"both"`
 	Tasks []calendarEntryDTO `json:"tasks"`
 	// DueTasks is the set of tasks due on this day.
 	DueTasks []calendarEntryDTO `json:"due_tasks"`
-	Counts  map[string]int      `json:"counts"`
+	Counts   map[string]int     `json:"counts"`
 }
 
 // GetCalendar returns, for every day in the range, both the tasks that have work
 // logged on it and the tasks that are due on it. Serving both from one request is
 // what lets the UI switch between the logged and due views instantly.
 func (s *Server) GetCalendar(w http.ResponseWriter, r *http.Request) {
-	f, err := parseFilters(r, false)
+	f, err := parseFilters(r, true)
 	if err != nil {
 		badRequest(w, err)
 		return
@@ -69,6 +70,7 @@ func (s *Server) GetCalendar(w http.ResponseWriter, r *http.Request) {
 		ToDate:     to,
 		ProjectIds: f.projectCSV(),
 		Status:     nullableString(f.Status),
+		Priority:   nullableString(f.Priority),
 		Q:          f.Query,
 	})
 	if err != nil {
@@ -76,10 +78,11 @@ func (s *Server) GetCalendar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	due, err := s.q.ListCalendarDueEntries(r.Context(), db.ListCalendarDueEntriesParams{
-		FromDate:   from,
-		ToDate:     to,
+		FromDate:   sql.NullTime{Time: from, Valid: true},
+		ToDate:     sql.NullTime{Time: to, Valid: true},
 		ProjectIds: f.projectCSV(),
 		Status:     nullableString(f.Status),
+		Priority:   nullableString(f.Priority),
 		Q:          f.Query,
 	})
 	if err != nil {
@@ -110,7 +113,7 @@ func (s *Server) GetCalendar(w http.ResponseWriter, r *http.Request) {
 		d.Counts[row.Status]++
 	}
 	for _, row := range due {
-		key := row.DueDate.Format(dateLayout)
+		key := row.DueDate.Time.Format(dateLayout)
 		d := day(key)
 		d.DueTasks = append(d.DueTasks, entryFromRow(row.TaskID, row.Title, row.Status, row.Priority, row.Locked, row.ProjectID, row.ProjectName, row.ProjectColor))
 	}
